@@ -1,5 +1,7 @@
 pub mod util;
 use anchor_lang::prelude::*;
+use crate::util::token::create_token_vault_account;
+
 
 use anchor_spl::token::{
     self,
@@ -19,13 +21,84 @@ pub mod Clmm_Basic {
 
     pub fn create_pool(ctx: Context<CreatePool>, sqrt_price_x64: u128, open_time: u64) -> Result<()> {
 
-        // init token vault accounts
+    let pool_state = &mut ctx.accounts.pool_state;
+    
+    // init token vault accounts
+        create_token_vault_account(
+            &ctx.accounts.pool_creator,
+            &ctx.accounts.pool_state.to_account_info(),
+            &ctx.accounts.token_vault_0,
+            &ctx.accounts.token_mint_0,
+            &ctx.accounts.system_program,
+            &ctx.accounts.token_program_0,
+            &[
+                b"pool_vault",
+                ctx.accounts.pool_state.key().as_ref(),
+                ctx.accounts.token_mint_0.key().as_ref(),
+                &[ctx.bumps.token_vault_0][..],
+            ],
+        )?;
+
+        create_token_vault_account(
+            &ctx.accounts.pool_creator,
+            &ctx.accounts.pool_state.to_account_info(),
+            &ctx.accounts.token_vault_1,
+            &ctx.accounts.token_mint_1,
+            &ctx.accounts.system_program,
+            &ctx.accounts.token_program_1,
+            &[
+                b"pool_vault",
+                ctx.accounts.pool_state.key().as_ref(),
+                ctx.accounts.token_mint_1.key().as_ref(),
+                &[ctx.bumps.token_vault_1][..],
+            ],
+        )?;
+
+        let bump = ctx.bumps.pool_state;
+        let tick_spacing: u128 = 1;
+
+        ctx.accounts.pool_state.initialize(
+            ctx.accounts.token_mint_0.as_ref(),
+            ctx.accounts.token_mint_1.as_ref(),
+            ctx.accounts.token_vault_0.key(),
+            ctx.accounts.token_vault_1.key(),
+            tick_spacing,
+            sqrt_price_x64,
+            bump,
+
+        )?;
+
         Ok(())
     }
 }
 
 impl PoolState {
     pub const LEN: usize = 8 + std::mem::size_of::<PoolState>();
+}
+
+impl PoolState {
+    pub fn initialize(
+        &mut self,
+        mint_0: &InterfaceAccount<Mint>,
+        mint_1: &InterfaceAccount<Mint>,
+        vault_0: Pubkey,
+        vault_1: Pubkey,
+        tick_spacing: u128,
+        sqrt_price_x64: u128,
+        bump: u8,
+    ) -> Result<()> {
+        
+        self.token_mint_0 = mint_0.to_account_info().key();
+        self.token_mint_1 = mint_1.to_account_info().key();
+        self.token_vault_0 = vault_0;
+        self.token_vault_1 = vault_1;
+        
+        self.sqrt_price_x64 = sqrt_price_x64;
+        self.bump = bump;
+        self.open_time = Clock::get()?.unix_timestamp as u64;
+
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
@@ -106,7 +179,6 @@ pub struct PoolState {
     pub token_vault_1: Pubkey,
 
     pub open_time: u64,
-    pub current_tick: i32,
     pub tick_spacing: u16,
     pub bump: u8,
 
