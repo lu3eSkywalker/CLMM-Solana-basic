@@ -1,7 +1,8 @@
 pub mod util;
+pub mod libraries;
 use anchor_lang::prelude::*;
 use crate::util::token::create_token_vault_account;
-
+use crate::libraries::tick_math::get_tick_at_sqrt_price;
 
 use anchor_spl::token::{
     self,
@@ -13,15 +14,17 @@ use anchor_spl::token::{
 
 use anchor_spl::token_interface::{Mint, TokenInterface};
 
-declare_id!("3jstWhbtpX6HbLyDp7PiNyyeKvL41ZWo1ja4xz2UjJX7");
+declare_id!("Dh17ArtniN888VGBXPnmrb6t7Svw3sEk8a2kLEWrh2xa");
 
 #[program]
 pub mod Clmm_Basic {
     use super::*;
 
-    pub fn create_pool(ctx: Context<CreatePool>, sqrt_price_x64: u128, open_time: u64) -> Result<()> {
+    pub fn create_pool(ctx: Context<CreatePool>, sqrt_price_x64: u128) -> Result<()> {
 
     let pool_state = &mut ctx.accounts.pool_state;
+
+    let tick = get_tick_at_sqrt_price(sqrt_price_x64)?;
     
     // init token vault accounts
         create_token_vault_account(
@@ -62,12 +65,11 @@ pub mod Clmm_Basic {
             ctx.accounts.token_mint_1.as_ref(),
             ctx.accounts.token_vault_0.key(),
             ctx.accounts.token_vault_1.key(),
-            tick_spacing,
+            tick_spacing as u16,
             sqrt_price_x64,
+            tick,
             bump,
-
         )?;
-
         Ok(())
     }
 }
@@ -83,8 +85,9 @@ impl PoolState {
         mint_1: &InterfaceAccount<Mint>,
         vault_0: Pubkey,
         vault_1: Pubkey,
-        tick_spacing: u128,
+        tick_spacing: u16,
         sqrt_price_x64: u128,
+        current_tick: i32,
         bump: u8,
     ) -> Result<()> {
         
@@ -94,6 +97,8 @@ impl PoolState {
         self.token_vault_1 = vault_1;
         
         self.sqrt_price_x64 = sqrt_price_x64;
+        self.current_tick = current_tick;
+        self.tick_spacing = tick_spacing;
         self.bump = bump;
         self.open_time = Clock::get()?.unix_timestamp as u64;
 
@@ -180,6 +185,7 @@ pub struct PoolState {
 
     pub open_time: u64,
     pub tick_spacing: u16,
+    pub current_tick: i32,
     pub bump: u8,
 
     pub _padding: u8,
