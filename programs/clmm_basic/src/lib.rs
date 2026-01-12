@@ -1,8 +1,10 @@
 pub mod util;
 pub mod libraries;
+pub mod states;
 use anchor_lang::prelude::*;
 use crate::util::token::create_token_vault_account;
 use crate::libraries::tick_math::get_tick_at_sqrt_price;
+use crate::states::tick_array::get_or_create_tick_array;
 
 use anchor_spl::token::{
     self,
@@ -14,7 +16,7 @@ use anchor_spl::token::{
 
 use anchor_spl::token_interface::{Mint, TokenInterface};
 
-declare_id!("Dh17ArtniN888VGBXPnmrb6t7Svw3sEk8a2kLEWrh2xa");
+declare_id!("Hmch8iM23UAywLuxVks6LXUXz1Nne4vef25ncsapYZKb");
 
 #[program]
 pub mod Clmm_Basic {
@@ -72,6 +74,74 @@ pub mod Clmm_Basic {
         )?;
         Ok(())
     }
+
+//     pub fn open_position<'a, 'b, 'c: 'info, 'info>(
+//     payer: &'b Signer<'info>,
+//     pool_state_loader: &'b AccountLoader<'info, PoolState>,
+//     tick_array_lower_loader: &'b UncheckedAccount<'info>,
+//     tick_array_upper_loader: &'b UncheckedAccount<'info>,
+//     token_account_0: &'b AccountInfo<'info>,
+//     token_account_1: &'b AccountInfo<'info>,
+//     token_vault_0: &'b AccountInfo<'info>,
+//     token_vault_1: &'b AccountInfo<'info>,
+//     rent: &'b Sysvar<'info, Rent>,
+//     system_program: &'b Program<'info, System>,
+//     token_program: &'b Program<'info, Token>,
+//     _associated_token_program: &'b Program<'info, AssociatedToken>,
+//     metadata_program: Option<&'b Program<'info, Metadata>>,
+//     token_program_2022: Option<&'b Program<'info, Token2022>>,
+//     vault_0_mint: Option<Box<InterfaceAccount<'info, token_interface::Mint>>>,
+//     vault_1_mint: Option<Box<InterfaceAccount<'info, token_interface::Mint>>>,
+
+//     remaining_accounts: &'c [AccountInfo<'info>],
+//     personal_position_bump: u8,
+//     liquidity: u128,
+//     amount_0_max: u64,
+//     amount_1_max: u64,
+//     tick_lower_index: i32,
+//     tick_upper_index: i32,
+//     tick_array_lower_start_index: i32,
+//     tick_array_upper_start_index: i32,
+// ) -> Result<()> {
+//     let mut liquidity = liquidity;
+//     {
+//         let pool_state = &mut pool_state_loader.load_mut()?;
+//         if !pool_state.get_status_by_bit(PoolStatusBitIndex::OpenPositionOrIncreaseLiquidity) {
+//             return err!(ErrorCode::NotApproved);
+//         }
+
+//         // Why not use anchor's `init-if-needed` to create?
+//         // Beacuse `tick_array_lower` and `tick_array_upper` can be the same account, anchor can initialze tick_array_lower but it causes a crash when anchor to initialze the `tick_array_upper`,
+//         // the problem is variable scope, tick_array_lower_loader not exit to save the discriminator while build tick_array_upper_loader.
+//         let tick_array_lower_loader = TickArrayState::get_or_create_tick_array(
+//             payer.to_account_info(),
+//             tick_array_lower_loader.to_account_info(),
+//             system_program.to_account_info(),
+//             &pool_state_loader,
+//             tick_array_lower_start_index,
+//             pool_state.tick_spacing,
+//         )?;
+
+//         let tick_array_upper_loader =
+//             if tick_array_lower_start_index == tick_array_upper_start_index {
+//                 AccountLoad::<TickArrayState>::try_from(&tick_array_upper_loader.to_account_info())?
+//             } else {
+//                 TickArrayState::get_or_create_tick_array(
+//                     payer.to_account_info(),
+//                     tick_array_upper_loader.to_account_info(),
+//                     system_program.to_account_info(),
+//                     &pool_state_loader,
+//                     tick_array_upper_start_index,
+//                     pool_state.tick_spacing,
+//                 )?
+//             };
+
+//         let use_tickarray_bitmap_extension = pool_state.is_overflow_default_tickarray_bitmap(vec![
+//             tick_array_lower_start_index,
+//             tick_array_upper_start_index,
+//         ]);
+//     }
+// }
 }
 
 impl PoolState {
@@ -190,3 +260,64 @@ pub struct PoolState {
 
     pub _padding: u8,
 }
+
+// #[derive(Accounts)]
+// pub struct OpenPosition<'info> {
+//     #[account(mut)]
+//     pub payer: Signer<'info>,
+
+//     #[account(mut)]
+//     pub pool_state: Account<'info, PoolState>,
+
+//     #[account(
+//         mut,
+//         seeds = [
+//             b"tick_array",
+//             pool_state.key().as_ref(),
+//             &tick_array_lower_start_index.to_be_bytes(),
+//         ],
+//         bump,
+//     )]
+//     pub tick_array_lower: UncheckedAccount<'info>,
+
+//     #[account(
+//         mut,
+//         seeds = [
+//             b"tick_array",
+//             pool_state.key().as_ref(),
+//             &tick_array_upper_start_index.to_be_bytes(),
+//         ],
+//         bump,
+//     )]
+//     pub tick_array_upper: UncheckedAccount<'info>,
+
+//     #[account(
+//         mut,
+//         token::mint = token_vault_0.mint
+//     )]
+//     pub token_account_0: Box<Account<'info, TokenAccount>>,
+
+//     #[account(
+//         mut,
+//         token::mint = token_vault_1.mint
+//     )]
+//     pub token_account_1: Box<Account<'info, TokenAccount>>,
+
+//     #[account(
+//         mut,
+//         constraint = token_vault_0.key() == pool_state.load()?.token_vault_0
+//     )]
+//     pub token_vault_0: Box<Account<'info, TokenAccount>>,
+
+//     #[account(
+//         mut,
+//         constraint = token_vault_1.key() == pool_state.load()?.token_vault_1
+//     )]
+//     pub token_vault_1: Box<Account<'info, TokenAccount>>,
+
+//     pub rent: Sysvar<'info, Rent>,
+
+//     pub system_program: Program<'info, System>,
+
+//     pub token_program: Program<'info, Token>,
+// }
