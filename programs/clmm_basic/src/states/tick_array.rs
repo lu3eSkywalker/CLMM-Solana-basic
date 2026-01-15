@@ -1,4 +1,5 @@
 use anchor_lang::{prelude::*, system_program};
+use crate::PoolState;
 
 pub const TICK_ARRAY_SIZE_USIZE: usize = 60;
 pub const TICK_ARRAY_SIZE: i32 = 60;
@@ -30,8 +31,8 @@ pub struct TickArrayState {
 pub fn get_or_create_tick_array<'info>(
     payer: AccountInfo<'info>,
     tick_array_account_info: &'info AccountInfo<'info>,
-    system_program: &'info AccountInfo<'info>,
-    pool_account: &UncheckedAccount<'info>,
+    system_program: &AccountInfo<'info>,
+    pool_account: &Account<'info, PoolState>,
     tick_array_start_index: i32,
     tick_spacing: u16,
 ) -> Result<()> {
@@ -68,8 +69,6 @@ pub fn get_or_create_tick_array<'info>(
         )?;
         let mut tick_array = loader.load_init()?; // mutable zero-copy borrow
         tick_array.initialize(tick_array_start_index, tick_spacing, pool_account.key())?;
-
-
         Ok(())
     } else {
         AccountLoader::<TickArrayState>::try_from(tick_array_account_info)?;
