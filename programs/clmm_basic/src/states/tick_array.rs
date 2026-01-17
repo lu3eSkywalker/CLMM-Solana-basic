@@ -154,3 +154,50 @@ pub fn create_or_allocate_account<'a>(
     }
     Ok(())
 }
+
+pub fn get_tick_state_mut(
+    tick_array: &mut TickArrayState,
+    tick_index: i32,
+    tick_spacing: u16,
+) -> Result<&mut TickState> {
+    let offset_in_array = get_tick_offset_in_array(tick_array, tick_index, tick_spacing)?;
+    Ok(&mut tick_array.ticks[offset_in_array])
+}
+
+pub fn get_tick_offset_in_array(tick_array: &TickArrayState, tick_index: i32, tick_spacing: u16) -> Result<usize> {
+    let start_tick_index = get_array_start_index(tick_index, tick_spacing);
+    // require_eq!(
+    //     start_tick_index,
+    //     tick_array.start_tick_index,
+    //     ErrorCode::InvalidTickArray
+    // );
+    let offset_in_array = 
+        ((tick_index - tick_array.start_tick_index) / i32::from(tick_spacing)) as usize;
+    Ok(offset_in_array)
+}
+
+pub fn get_array_start_index(tick_index: i32, tick_spacing: u16) -> i32 {
+    let ticks_in_array = tick_count(tick_spacing);
+    let mut start = tick_index / ticks_in_array;
+    if tick_index < 0 && tick_index % ticks_in_array != 0 {
+        start = start - 1
+    }
+    start * ticks_in_array
+}
+
+pub fn tick_count(tick_spacing: u16) -> i32 {
+    TICK_ARRAY_SIZE * i32::from(tick_spacing)
+}
+
+pub fn update_tick_state(
+    tick_array: &mut TickArrayState,
+    tick_index: i32,
+    tick_spacing: u16,
+    tick_state: TickState,
+) -> Result<()> {
+    let offset_in_array = get_tick_offset_in_array(tick_array, tick_index, tick_spacing)?;
+    tick_array.ticks[offset_in_array] = tick_state;
+    tick_array.recent_epoch = Clock::get()?.epoch;
+
+    Ok(())
+}
