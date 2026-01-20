@@ -27,3 +27,4 @@ mpl-core = "0.10.0"
 mpl-token-metadata = { version = "5.1.0" }
 spl-token = "8.0.0"
 bytemuck = { version = "1.19.0", features = ["derive", "min_const_generics"] }
+uint = { git = "https://github.com/raydium-io/parity-common", package = "uint" }
