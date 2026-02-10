@@ -4,6 +4,54 @@ use anchor_spl::token_2022::{
     Token2022,
 };
 use anchor_spl::token_interface::{Mint, TokenInterface};
+use anchor_spl::token::{self, Token};
+
+pub fn transfer_from_user_to_pool_vault<'info>(
+    signer: &Signer<'info>,
+    from: &AccountInfo<'info>,
+    to_vault: &AccountInfo<'info>,
+    mint: Option<Box<InterfaceAccount<'info, Mint>>>,
+    token_program: &AccountInfo<'info>,
+    token_program_2022: Option<AccountInfo<'info>>,
+    amount: u64,
+) -> Result<()> {
+    if amount == 0 {
+        return Ok(());
+    }
+    let mut token_program_info = token_program.to_account_info();
+    let from_token_info = from.to_account_info();
+    match (mint, token_program_2022) {
+        (Some(mint), Some(token_program_2022)) => {
+            if from_token_info.owner == token_program_2022.key {
+                token_program_info = token_program_2022.to_account_info()
+            }
+            token_2022::transfer_checked(
+                CpiContext::new(
+                    token_program_info,
+                    token_2022::TransferChecked {
+                        from: from_token_info,
+                        to: to_vault.to_account_info(),
+                        authority: signer.to_account_info(),
+                        mint: mint.to_account_info(),
+                    },
+                ),
+                amount,
+                mint.decimals,
+            )
+        }
+        _ => token::transfer(
+            CpiContext::new(
+                token_program_info,
+                token::Transfer {
+                    from: from_token_info,
+                    to: to_vault.to_account_info(),
+                    authority: signer.to_account_info(),
+                },
+            ),
+            amount,
+        ),
+    }
+}
 
 pub fn create_token_vault_account<'info>(
     payer: &Signer<'info>,

@@ -2,7 +2,6 @@ use anchor_lang::prelude::*;
 use crate::errors::ClmmError;
 use super::big_num::U256;
 use crate::libraries::tick_math::get_sqrt_price_at_tick;
-use super::fixed_point_64;
 use super::precision_math;
 use super::precision_math::UnsafeMathTrait;
 
@@ -89,12 +88,12 @@ pub fn get_delta_amount_1_unsigned(
     let result = if round_up {
         U256::from(liquidity).mul_div_ceil(
             U256::from(sqrt_ratio_b_x64 - sqrt_ratio_a_x64),
-            U256::from(fixed_point_64::Q64),
+            U256::from(Q64),
         )
     } else {
         U256::from(liquidity).mul_div_floor(
             U256::from(sqrt_ratio_b_x64 - sqrt_ratio_a_x64),
-            U256::from(fixed_point_64::Q64),
+            U256::from(Q64),
         )
     }.unwrap();
     if result > U256::from(u64::MAX) {

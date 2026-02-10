@@ -1,12 +1,13 @@
 pub mod util;
+pub mod errors;
 pub mod libraries;
 pub mod states;
 pub mod instructions;
 use anchor_lang::prelude::*;
 use crate::util::token::create_token_vault_account;
 use crate::libraries::tick_math::get_tick_at_sqrt_price;
-use crate::states::tick_array::get_or_create_tick_array;
-use crate::instructions::open_position::open_position;
+use crate::states::*;
+use crate::instructions::*;
 
 use anchor_spl::token::{
     self,
@@ -18,7 +19,7 @@ use anchor_spl::token::{
 
 use anchor_spl::token_interface::{Mint, TokenInterface};
 
-declare_id!("Hmch8iM23UAywLuxVks6LXUXz1Nne4vef25ncsapYZKb");
+declare_id!("F6eXErdippiDn4Usit4X4R9A5HTh2YhGarYcH7t73zTx");
 
 #[program]
 pub mod Clmm_Basic {
@@ -26,7 +27,8 @@ pub mod Clmm_Basic {
 
     pub fn create_pool(ctx: Context<CreatePool>, sqrt_price_x64: u128) -> Result<()> {
 
-    let pool_state = &mut ctx.accounts.pool_state;
+    // let pool_state = &mut ctx.accounts.pool_state;
+    let mut pool_state = &mut ctx.accounts.pool_state.load_init()?;
 
     let tick = get_tick_at_sqrt_price(sqrt_price_x64)?;
     
@@ -64,7 +66,7 @@ pub mod Clmm_Basic {
         let bump = ctx.bumps.pool_state;
         let tick_spacing: u128 = 1;
 
-        ctx.accounts.pool_state.initialize(
+        pool_state.initialize(
             ctx.accounts.token_mint_0.as_ref(),
             ctx.accounts.token_mint_1.as_ref(),
             ctx.accounts.token_vault_0.key(),
@@ -128,7 +130,8 @@ pub struct CreatePool<'info> {
         payer = pool_creator,
         space = PoolState::LEN
     )]
-    pub pool_state: Account<'info, PoolState>,
+    // pub pool_state: Account<'info, PoolState>,
+    pub pool_state: AccountLoader<'info, PoolState>,
 
     /// Token_0 mint, the key must be smaller then token_1 mint.
     #[account(
@@ -177,7 +180,9 @@ pub struct CreatePool<'info> {
     pub rent: Sysvar<'info, Rent>,
 }
 
-#[account]
+#[account(zero_copy(unsafe))]
+#[repr(C, packed)]
+#[derive(Default, Debug)]
 pub struct PoolState {
     pub sqrt_price_x64: u128,
     pub liquidity: u128,
@@ -195,66 +200,66 @@ pub struct PoolState {
     pub _padding: u8,
 }
 
-#[derive(Accounts)]
-#[instruction(tick_array_lower_start_index:i32, tick_array_upper_start_index:i32,)]
-pub struct OpenPosition<'info> {
-    #[account(mut)]
-    pub payer: Signer<'info>,
+// #[derive(Accounts)]
+// #[instruction(tick_array_lower_start_index:i32, tick_array_upper_start_index:i32,)]
+// pub struct OpenPosition<'info> {
+//     #[account(mut)]
+//     pub payer: Signer<'info>,
 
-    #[account(mut)]
-    pub pool_state: Account<'info, PoolState>,
+//     #[account(mut)]
+//     pub pool_state: AccountLoader<'info, PoolState>,
 
-    /// CHECK
-    #[account(
-        mut,
-        seeds = [
-            b"tick_array",
-            pool_state.key().as_ref(),
-            &tick_array_lower_start_index.to_be_bytes(),
-        ],
-        bump,
-    )]
-    pub tick_array_lower: UncheckedAccount<'info>,
+//     /// CHECK
+//     #[account(
+//         mut,
+//         seeds = [
+//             b"tick_array",
+//             pool_state.key().as_ref(),
+//             &tick_array_lower_start_index.to_be_bytes(),
+//         ],
+//         bump,
+//     )]
+//     pub tick_array_lower: UncheckedAccount<'info>,
 
-    /// CHECK
-    #[account(
-        mut,
-        seeds = [
-            b"tick_array",
-            pool_state.key().as_ref(),
-            &tick_array_upper_start_index.to_be_bytes(),
-        ],
-        bump,
-    )]
-    pub tick_array_upper: UncheckedAccount<'info>,
+//     /// CHECK
+//     #[account(
+//         mut,
+//         seeds = [
+//             b"tick_array",
+//             pool_state.key().as_ref(),
+//             &tick_array_upper_start_index.to_be_bytes(),
+//         ],
+//         bump,
+//     )]
+//     pub tick_array_upper: UncheckedAccount<'info>,
 
-    #[account(
-        mut,
-        token::mint = token_vault_0.mint
-    )]
-    pub token_account_0: Box<Account<'info, TokenAccount>>,
+//     #[account(
+//         mut,
+//         token::mint = token_vault_0.mint
+//     )]
+//     pub token_account_0: Box<Account<'info, TokenAccount>>,
 
-    #[account(
-        mut,
-        token::mint = token_vault_1.mint
-    )]
-    pub token_account_1: Box<Account<'info, TokenAccount>>,
+//     #[account(
+//         mut,
+//         token::mint = token_vault_1.mint
+//     )]
+//     pub token_account_1: Box<Account<'info, TokenAccount>>,
 
-    #[account(
-        mut,
-        constraint = token_vault_0.key() == pool_state.token_vault_0
-    )]
-    pub token_vault_0: Box<Account<'info, TokenAccount>>,
+//     #[account(
+//         mut,
+//         constraint = token_vault_0.key() == pool_state.token_vault_0
+//     )]
+//     pub token_vault_0: Box<Account<'info, TokenAccount>>,
 
-    #[account(
-        mut,
-        constraint = token_vault_1.key() == pool_state.token_vault_1
-    )]
-    pub token_vault_1: Box<Account<'info, TokenAccount>>,
+//     #[account(
+//         mut,
+//         constraint = token_vault_1.key() == pool_state.token_vault_1
+//     )]
+//     pub token_vault_1: Box<Account<'info, TokenAccount>>,
 
-    pub rent: Sysvar<'info, Rent>,
+//     pub rent: Sysvar<'info, Rent>,
 
-    pub system_program: Program<'info, System>,
+//     pub system_program: Program<'info, System>,
 
-    pub token_program: Program<'info, Token>,
-}
+//     pub token_program: Program<'info, Token>,
+// }
