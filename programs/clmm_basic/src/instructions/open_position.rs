@@ -1,5 +1,6 @@
 use anchor_lang::{prelude::*, system_program};
 use crate::PoolState;
+use crate::OpenPosition;
 use crate::errors::ClmmError;
 use crate::states::*;
 use crate::states::tick_array;
@@ -10,8 +11,8 @@ use anchor_spl::token_interface;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 use anchor_spl::token_2022::{self, spl_token_2022::instruction::AuthorityType, Token2022};
 
-
 pub fn open_position<'a, 'b: 'info, 'c: 'info, 'info>(
+    ctx: Context<OpenPosition>,
     payer: &'b Signer<'info>,
     token_account_0: &'b AccountInfo<'info>,
     token_account_1: &'b AccountInfo<'info>,
@@ -35,6 +36,18 @@ pub fn open_position<'a, 'b: 'info, 'c: 'info, 'info>(
     tick_upper_index: i32,
 ) -> Result<()> {
     let mut pool_state = pool_state_loader.load_mut()?;
+
+    require_keys_eq!(
+        ctx.accounts.token_vault_0.key(),
+        pool_state.token_vault_0,
+        ClmmError::InvalidVault
+    );
+
+    require_keys_eq!(
+        ctx.accounts.token_vault_1.key(),
+        pool_state.token_vault_1,
+        ClmmError::InvalidVault
+    );
     
     TickArrayState::get_or_create_tick_array(
         payer.to_account_info(),
