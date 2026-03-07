@@ -18,4 +18,8 @@ pub enum ClmmError {
     ZeroToken0Amount,
     #[msg("Invalid Token 1 Amount")]
     ZeroToken1Amount,
+    #[msg("Invalid Vault Account")]
+    InvalidVault,
+    #[msg("Test Invalid Message")]
+    InvalidMessage,
 }

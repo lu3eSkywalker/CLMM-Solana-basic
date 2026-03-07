@@ -1,16 +1,17 @@
-use anchor_lang::{prelude::*, system_program};
-use std::cell::RefMut;
 use crate::errors::ClmmError;
-use crate::PoolState;
-use crate::states::*;
-use crate::states::tick_array::TickArrayState;
 use crate::libraries::liquidity_math::add_delta;
-use crate::states::tick_array::TickState;
 use crate::libraries::liquidity_math::get_delta_amounts_signed;
+use crate::states::tick_array::TickArrayState;
+use crate::states::tick_array::TickState;
+use crate::states::*;
+use crate::util::account_load::AccountLoad;
 use crate::util::token::transfer_from_user_to_pool_vault;
-use anchor_spl::token_interface;
+use crate::PoolState;
+use anchor_lang::{prelude::*, system_program};
 use anchor_spl::token::{Mint, Token, TokenAccount};
 use anchor_spl::token_2022::{self, spl_token_2022::instruction::AuthorityType, Token2022};
+use anchor_spl::token_interface;
+use std::cell::RefMut;
 
 #[derive(Default)]
 pub struct LiquidityChangeResult {
@@ -27,13 +28,13 @@ pub fn add_liquidity<'b, 'c: 'info, 'info>(
     token_account_1: &'b AccountInfo<'info>,
     token_vault_0: &'b AccountInfo<'info>,
     token_vault_1: &'b AccountInfo<'info>,
-    tick_array_lower_loader: &'b AccountLoader<'info, TickArrayState>,
-    tick_array_upper_loader: &'b AccountLoader<'info, TickArrayState>,
+    tick_array_lower_loader: &'b AccountLoad<'info, TickArrayState>,
+    tick_array_upper_loader: &'b AccountLoad<'info, TickArrayState>,
     token_program_2022: Option<&Program<'info, Token2022>>,
     token_program: &'b Program<'info, Token>,
     vault_0_mint: Option<Box<InterfaceAccount<'info, token_interface::Mint>>>,
     vault_1_mint: Option<Box<InterfaceAccount<'info, token_interface::Mint>>>,
-    pool_state: &mut PoolState,
+    pool_state: &mut RefMut<PoolState>,
     liquidity: &mut u128,
     amount_0_max: u64,
     amount_1_max: u64,
@@ -49,16 +50,14 @@ pub fn add_liquidity<'b, 'c: 'info, 'info>(
     // require_keys_eq!(tick_array_lower_loader.load()?.pool_id, pool_state.key());
     // require_keys_eq!(tick_array_upper_loader.load()?.pool_id, pool_state.key());
 
-
     // get tick state
-    let mut tick_array_lower = tick_array_lower_loader.load_mut()?;
+    let mut tick_lower_state = *tick_array_lower_loader
+        .load_mut()?
+        .get_tick_state_mut(tick_lower_index, pool_state.tick_spacing)?;
 
-    let tick_lower_state = TickArrayState::get_tick_state_mut(&mut tick_array_lower, tick_lower_index, pool_state.tick_spacing)?;
-
-    let mut tick_array_upper = tick_array_upper_loader.load_mut()?;
-
-    let tick_upper_state = TickArrayState::get_tick_state_mut(&mut tick_array_upper, tick_upper_index, pool_state.tick_spacing)?;
-
+    let mut tick_upper_state = *tick_array_upper_loader
+        .load_mut()?
+        .get_tick_state_mut(tick_upper_index, pool_state.tick_spacing)?;
 
     if tick_lower_state.tick == 0 {
         tick_lower_state.tick = tick_lower_index;
@@ -70,44 +69,37 @@ pub fn add_liquidity<'b, 'c: 'info, 'info>(
     let mut result = modify_position(
         i128::try_from(*liquidity).unwrap(),
         pool_state,
-        tick_lower_state,
-        tick_upper_state,
+        &mut tick_lower_state,
+        &mut tick_upper_state,
         clock.unix_timestamp as u64,
     )?;
 
     if result.tick_lower_flipped {
-        TickArrayState::update_initialized_tick_count(&mut tick_array_lower, true)?;
+        tick_array_lower_loader
+            .load_mut()?
+            .update_initialized_tick_count(true)?;
     }
 
     if result.tick_upper_flipped {
-        TickArrayState::update_initialized_tick_count(&mut tick_array_upper, true)?;
+        tick_array_upper_loader
+            .load_mut()?
+            .update_initialized_tick_count(true)?;
     }
 
     let amount_0 = result.amount_0;
     let amount_1 = result.amount_1;
 
-    require!(
-        amount_0 > 0 || amount_1 > 0,
-        ClmmError::ZeroSupplyLiquidity
-    );
+    require!(amount_0 > 0 || amount_1 > 0, ClmmError::ZeroSupplyLiquidity);
 
-    require_gte!(
-        amount_0_max,
-        amount_0,
-        ClmmError::SlippageCheck
-    );
+    require_gte!(amount_0_max, amount_0, ClmmError::SlippageCheck);
 
-    require_gte!(
-        amount_1_max,
-        amount_1,
-        ClmmError::SlippageCheck
-    );
+    require_gte!(amount_1_max, amount_1, ClmmError::SlippageCheck);
 
     let mut token_2022_program_opt: Option<AccountInfo> = None;
     if token_program_2022.is_some() {
         token_2022_program_opt = Some(token_program_2022.clone().unwrap().to_account_info());
     }
-    
+
     transfer_from_user_to_pool_vault(
         payer,
         token_account_0,
@@ -115,7 +107,7 @@ pub fn add_liquidity<'b, 'c: 'info, 'info>(
         vault_0_mint,
         &token_program,
         token_2022_program_opt.clone(),
-        amount_0
+        amount_0,
     )?;
 
     transfer_from_user_to_pool_vault(
@@ -125,7 +117,7 @@ pub fn add_liquidity<'b, 'c: 'info, 'info>(
         vault_1_mint,
         &token_program,
         token_2022_program_opt.clone(),
-        amount_1
+        amount_1,
     )?;
 
     Ok(result)
@@ -133,28 +125,19 @@ pub fn add_liquidity<'b, 'c: 'info, 'info>(
 
 pub fn modify_position(
     liquidity_delta: i128,
-    pool_state: &mut PoolState,
+    pool_state: &mut RefMut<PoolState>,
     tick_lower_state: &mut TickState,
     tick_upper_state: &mut TickState,
     timestamp: u64,
 ) -> Result<LiquidityChangeResult> {
-
     let mut flipped_lower = false;
     let mut flipped_upper = false;
 
     // update the ticks if liquidity delta is non-zero
     if liquidity_delta != 0 {
         // Update tick state and find if tick is flipped
-        flipped_lower = tick_lower_state.update(
-            pool_state.current_tick,
-            liquidity_delta,
-            false,
-        )?;
-        flipped_upper = tick_upper_state.update(
-            pool_state.current_tick,
-            liquidity_delta,
-            true,
-        )?;
+        flipped_lower = tick_lower_state.update(pool_state.current_tick, liquidity_delta, false)?;
+        flipped_upper = tick_upper_state.update(pool_state.current_tick, liquidity_delta, true)?;
     }
 
     // Clear Unused ticks

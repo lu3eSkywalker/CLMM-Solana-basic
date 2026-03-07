@@ -1,18 +1,19 @@
 use anchor_lang::{prelude::*, system_program};
 use crate::PoolState;
 use crate::libraries::liquidity_math::add_delta;
+use crate::util::account_load::AccountLoad;
+use crate::util::*;
 
 pub const TICK_ARRAY_SIZE_USIZE: usize = 60;
 pub const TICK_ARRAY_SIZE: i32 = 60;
 
 impl TickState {
     pub const LEN: usize =
-        8 +  // Anchor discriminator
-        4 +  // tick
-        16 + // liquidity_net
-        16 + // liquidity_gross
-        52;  // padding
-
+        8 +
+        4 +
+        16 +
+        16 +
+        52;
 
     pub fn update(
         &mut self,
@@ -46,16 +47,15 @@ impl TickArrayState {
     pub const LEN: usize = 8 + 32 + 4 + 96 + 1 + 115;
 
     pub fn get_or_create_tick_array<'info>(
-    payer: AccountInfo<'info>,
-    tick_array_loader: &'info AccountLoader<'info, TickArrayState>,
-    system_program: AccountInfo<'info>,
-    pool_state_loader: &AccountLoader<'info, PoolState>,
-    tick_array_start_index: i32,
-    tick_spacing: u16,
-) -> Result<()> { 
-    let tick_array_account_info = tick_array_loader.to_account_info();
+        payer: AccountInfo<'info>,
+        tick_array_account_info: AccountInfo<'info>,
+        system_program: AccountInfo<'info>,
+        pool_state_loader: &AccountLoader<'info, PoolState>,
+        tick_array_start_index: i32,
+        tick_spacing: u16,
+    ) -> Result<AccountLoad<'info, TickArrayState>> {
     
-    if tick_array_account_info.owner == &system_program::ID {
+    let tick_array_state = if tick_array_account_info.owner == &system_program::ID {
         let (expected_pda, bump) = Pubkey::find_program_address(
             &[
                 b"tick_array",
@@ -79,18 +79,23 @@ impl TickArrayState {
             ],
             TickArrayState::LEN,
         )?;
-        
+        let tick_array_state_loader = AccountLoad::<TickArrayState>::try_from_unchecked(
+            &crate::id(),
+            &tick_array_account_info,
+        )?;
         {
-            let mut tick_array_account = tick_array_loader.load_init()?;
+            let mut tick_array_account = tick_array_state_loader.load_init()?;
             tick_array_account.initialize(
                 tick_array_start_index,
                 tick_spacing,
                 pool_state_loader.key(),
             )?;
         }
-    }
-    
-    Ok(())
+        tick_array_state_loader
+    } else {
+        AccountLoad::<TickArrayState>::try_from(&tick_array_account_info)?
+    };
+    Ok(tick_array_state)
 }
 
     pub fn get_tick_state_mut(
@@ -102,8 +107,8 @@ impl TickArrayState {
         Ok(&mut self.ticks[offset_in_array])
     }
 
-    pub fn get_tick_offset_in_array(&self, tick_index: i32, tick_spacing: u16) -> Result<usize> {
-        let start_tick_index = Self::get_array_start_index(tick_index, tick_spacing);
+    pub fn get_tick_offset_in_array(self, tick_index: i32, tick_spacing: u16) -> Result<usize> {
+        let start_tick_index = TickArrayState::get_array_start_index(tick_index, tick_spacing);
         // require_eq!(
         //     start_tick_index,
         //     self.start_tick_index,
@@ -140,18 +145,15 @@ impl TickArrayState {
         Ok(())
     }
 
-    pub fn update_initialized_tick_count(tick_array: &mut TickArrayState, add: bool) -> Result<()> {
+
+    pub fn update_initialized_tick_count(&mut self, add: bool) -> Result<()> {
         if add {
-            tick_array.initialized_tick_count += 1;
+            self.initialized_tick_count += 1;
         } else {
-            tick_array.initialized_tick_count -= 1;
+            self.initialized_tick_count -= 1;
         }
         Ok(())
     }
-
-
-
-
 }
 
 #[account(zero_copy(unsafe))]

@@ -7,7 +7,8 @@ use anchor_spl::token_interface::{Mint, TokenInterface};
 use anchor_spl::token::{self, Token};
 
 pub fn transfer_from_user_to_pool_vault<'info>(
-    signer: &Signer<'info>,
+    // signer: &Signer<'info>,
+    signer: &AccountInfo<'info>,
     from: &AccountInfo<'info>,
     to_vault: &AccountInfo<'info>,
     mint: Option<Box<InterfaceAccount<'info, Mint>>>,

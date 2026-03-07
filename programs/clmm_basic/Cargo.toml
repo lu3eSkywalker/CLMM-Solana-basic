@@ -1,12 +1,12 @@
 [package]
-name = "Clmm_Basic"
+name = "clmm_basic"
 version = "0.1.0"
 description = "Created with Anchor"
 edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "Clmm_Basic"
+name = "clmm_basic"
 
 [workspace]
 resolver = "2"
@@ -25,6 +25,7 @@ anchor-spl = { version = "0.31.1", features = ["metadata"] }
 solana-program = "2.3.0"
 mpl-core = "0.10.0"
 mpl-token-metadata = { version = "5.1.0" }
-spl-token = "8.0.0"
+spl-token = { version = "8.0.0", features = ["no-entrypoint"] }
 bytemuck = { version = "1.19.0", features = ["derive", "min_const_generics"] }
 uint = { git = "https://github.com/raydium-io/parity-common", package = "uint" }
+arrayref = { version = "0.3.6" }

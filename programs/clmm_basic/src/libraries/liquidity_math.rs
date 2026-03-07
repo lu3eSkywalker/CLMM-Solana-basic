@@ -20,7 +20,7 @@ pub fn add_delta(x: u128, y: i128) -> Result<u128> {
         require_gt!(x, z, ClmmError::LiquiditySubValueError);
     } else {
         z = x + u128::try_from(y).unwrap();
-        require_gt!(z, x, ClmmError::LiquidityAddValueError);
+        require_gte!(z, x, ClmmError::LiquidityAddValueError);
     }
 
     Ok(z)
@@ -147,7 +147,6 @@ pub fn get_delta_amount_1_signed(
         )
     }
 }
-
 
 
 pub fn get_delta_amounts_signed(
