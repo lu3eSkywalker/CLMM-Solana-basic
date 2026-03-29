@@ -47,7 +47,7 @@ pub fn get_delta_amount_0_unsigned(
     liquidity: u128,
     round_up: bool,
 ) -> Result<u64> {
-    if sqrt_ratio_a_x64 > sqrt_ratio_a_x64 {
+    if sqrt_ratio_a_x64 > sqrt_ratio_b_x64 {
         std::mem::swap(&mut sqrt_ratio_a_x64, &mut sqrt_ratio_b_x64);
     };
 
@@ -81,7 +81,7 @@ pub fn get_delta_amount_1_unsigned(
     round_up: bool,
 ) -> Result<u64> {
     // sqrt_ratio_a_x64 should be smaller
-    if sqrt_ratio_a_x64 > sqrt_ratio_a_x64 {
+    if sqrt_ratio_a_x64 > sqrt_ratio_b_x64 {
         std::mem::swap(&mut sqrt_ratio_a_x64, &mut sqrt_ratio_b_x64);
     };
 
@@ -119,7 +119,7 @@ pub fn get_delta_amount_0_signed(
         get_delta_amount_0_unsigned(
             sqrt_ratio_a_x64,
             sqrt_ratio_b_x64,
-            u128::try_from(-liquidity).unwrap(),
+            u128::try_from(liquidity).unwrap(),
             true,
         )
     }
@@ -142,12 +142,11 @@ pub fn get_delta_amount_1_signed(
         get_delta_amount_1_unsigned(
             sqrt_ratio_a_x64,
             sqrt_ratio_b_x64,
-            u128::try_from(-liquidity).unwrap(),
+            u128::try_from(liquidity).unwrap(),
             true,
         )
     }
 }
-
 
 pub fn get_delta_amounts_signed(
     tick_current: i32,
