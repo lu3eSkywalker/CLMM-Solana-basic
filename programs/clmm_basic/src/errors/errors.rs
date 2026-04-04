@@ -22,4 +22,6 @@ pub enum ClmmError {
     InvalidVault,
     #[msg("Test Invalid Message")]
     InvalidMessage,
+    #[msg("Invalid Tick Array")]
+    InvalidTickArray
 }

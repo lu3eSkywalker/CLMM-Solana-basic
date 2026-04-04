@@ -12,7 +12,13 @@ use anchor_spl::token_2022::{self, spl_token_2022::instruction::AuthorityType, T
 
 
     #[derive(Accounts)]
-    #[instruction(tick_array_lower_start_index:i32, tick_array_upper_start_index:i32,)]
+    #[instruction
+    (
+        tick_lower_index: i32,        // 1st arg
+        tick_upper_index: i32,
+        tick_array_lower_start_index:i32, 
+        tick_array_upper_start_index:i32,
+    )]
     pub struct OpenPosition<'info> {
         #[account(mut)]
         pub payer: Signer<'info>,

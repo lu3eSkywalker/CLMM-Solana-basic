@@ -3,13 +3,13 @@ use crate::PoolState;
 use crate::libraries::liquidity_math::add_delta;
 use crate::util::account_load::AccountLoad;
 use crate::util::*;
+use crate::errors::*;
 
 pub const TICK_ARRAY_SIZE_USIZE: usize = 60;
 pub const TICK_ARRAY_SIZE: i32 = 60;
 
 impl TickState {
     pub const LEN: usize =
-        8 +
         4 +
         16 +
         16 +
@@ -44,7 +44,7 @@ impl TickState {
 }
 
 impl TickArrayState {
-    pub const LEN: usize = 8 + 32 + 4 + 96 + 1 + 115;
+    pub const LEN: usize = 8 + 32 + 4 + TickState::LEN * TICK_ARRAY_SIZE_USIZE + 1 + 8 + 107 + 8;
 
     pub fn get_or_create_tick_array<'info>(
         payer: AccountInfo<'info>,
@@ -107,13 +107,13 @@ impl TickArrayState {
         Ok(&mut self.ticks[offset_in_array])
     }
 
-    pub fn get_tick_offset_in_array(self, tick_index: i32, tick_spacing: u16) -> Result<usize> {
+    pub fn get_tick_offset_in_array(&self, tick_index: i32, tick_spacing: u16) -> Result<usize> {
         let start_tick_index = TickArrayState::get_array_start_index(tick_index, tick_spacing);
-        // require_eq!(
-        //     start_tick_index,
-        //     self.start_tick_index,
-        //     ErrorCode::InvalidTickArray
-        // );
+        require_eq!(
+            start_tick_index,
+            self.start_tick_index,
+            ClmmError::InvalidTickArray
+        );
         let offset_in_array = 
             ((tick_index - self.start_tick_index) / i32::from(tick_spacing)) as usize;
         Ok(offset_in_array)

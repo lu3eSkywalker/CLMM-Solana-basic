@@ -19,7 +19,7 @@ use anchor_spl::token_interface::{Mint, TokenInterface};
 
 
 
-declare_id!("3VyGTQbmdBknyoM3J6z1q7qZuWwM5giaLkH9yfyS6dnp");
+declare_id!("2XJG1KsydWbQGmnNWm4Qt1LXvrBCHKfpsFaRMo8ujN2w");
 
 #[program]
 pub mod clmm_basic {
@@ -88,7 +88,6 @@ pub mod clmm_basic {
         liquidity: u128,
         amount_0_max: u64,
         amount_1_max: u64,
-        tick_spacing: u16,
     ) -> Result<()> {
         open_position_v1(
             ctx,
@@ -99,6 +98,24 @@ pub mod clmm_basic {
             tick_upper_index,
             tick_array_lower_start_index,
             tick_array_upper_start_index,
+        )
+    }
+
+    pub fn increase_liquidity<'a, 'b, 'c: 'info, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, IncreaseLiquidity<'info>>,
+        liquidity: u128,
+        amount_0_max: u64,
+        amount_1_max: u64,
+        tick_lower_index: i32,
+        tick_upper_index: i32,
+    ) -> Result<()> {
+        increase_liquidity_v1(
+            ctx,
+            liquidity,
+            amount_0_max,
+            amount_1_max,
+            tick_lower_index,
+            tick_upper_index,
         )
     }
 }
