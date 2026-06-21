@@ -176,4 +176,61 @@ describe("Test", () => {
     console.log(`Use 'solana confirm -v ${txHash}' to see the logs`);
     await program.provider.connection.confirmTransaction(txHash);
   });
+
+  it("fetches the pool_state, price ticks", async () => {
+
+    const poolState = await program.account.poolState.fetch(pool_state_pda);
+    console.log({
+      sqrtPriceX64: poolState.sqrtPriceX64.toString(),
+      liquidity: poolState.liquidity.toString(),
+      tokenMint0: poolState.tokenMint0.toBase58(),
+      tokenMint1: poolState.tokenMint1.toBase58(),
+      tokenVault0: poolState.tokenVault0.toBase58(),
+      tokenVault1: poolState.tokenVault1.toBase58(),
+      openTime: poolState.openTime.toString(),
+      tickSpacing: poolState.tickSpacing,
+      currentTick: poolState.currentTick,
+      bump: poolState.bump,
+    });
+  });
+
+
+it("calculates the liquidity and the amount of tokens to be provided", async () => {
+    const sqrtPLower = Math.sqrt(0.8);
+    const sqrtPUpper = Math.sqrt(1.2);
+    const sqrtPCurrent = Math.sqrt(1);
+
+    const desiredTokenA = 100 * (10 ** 9);
+
+    const liquidity = Math.floor(
+      desiredTokenA * (sqrtPUpper * sqrtPCurrent) / (sqrtPUpper - sqrtPCurrent)
+    );
+
+    const liquidityValue = new BN(liquidity.toString());
+
+    console.log("This is the liquidity that you are providing: ", liquidityValue.toString());
+
+    const expectedTokenBToSubmit = liquidity * (sqrtPCurrent - sqrtPLower);
+    
+    console.log("These are the expected Token B to submit", expectedTokenBToSubmit / (10 ** 9));
+  });
+
+  it("recalculating liquidity by using Token B instead of Token A", async () => {
+    const sqrtPLower = Math.sqrt(0.8);
+    const sqrtPUpper = Math.sqrt(1.2);
+    const sqrtPCurrent = Math.sqrt(1);
+
+    const desiredTokenB = 121.16829434856346 * (10 ** 9); 
+
+    const liquidity = Math.floor(
+      desiredTokenB / (sqrtPCurrent - sqrtPLower)
+    );
+
+    const liquidityValue = new BN(liquidity.toString());
+    console.log("This is the liquidity that you are providing: ", liquidityValue.toString());
+
+    const expectedTokenAToSubmit = liquidity * ((sqrtPUpper - sqrtPCurrent) / (sqrtPUpper * sqrtPCurrent));
+    console.log("These are the expected Token A to submit", expectedTokenAToSubmit / (10 ** 9)); 
+  });
+
 });
