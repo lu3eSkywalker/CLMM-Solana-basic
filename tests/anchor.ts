@@ -5,14 +5,13 @@ import { ClmmBasic } from "../target/types/Clmm_Basic";
 import { BN } from "@coral-xyz/anchor";
 
 describe("Test", () => {
-  // Configure the client to use the local cluster
   anchor.setProvider(anchor.AnchorProvider.env());
 
   const program = anchor.workspace.ClmmBasic as anchor.Program<ClmmBasic>;
 
   // Token A and Token B
-  const tokenA_mint_address = new web3.PublicKey("7ccTwPumA3yhJF4aEWpPXCxo9oGUS8hW65XyLVnT2WGt");
-  const tokenB_mint_address = new web3.PublicKey("AwacwrTPpKgFEYdFSqFTVSm9Q4HDuz5LeZk69NpwLeH6");
+  const tokenA_mint_address = new web3.PublicKey("2yUWpgR1cX453hmxnh7RJEspfoBt2JVzWyUKniXzVheY");
+  const tokenB_mint_address = new web3.PublicKey("3fKqu7JLynEkyooG6TvBmq4djU6jsHuPivTcLgpKfhQQ");
 
 
   const [pool_state_pda, bump] = web3.PublicKey.findProgramAddressSync(
@@ -58,19 +57,20 @@ describe("Test", () => {
     // Confirm Transaction
     await program.provider.connection.confirmTransaction(txHash);
   });
-  
+
+
+
   it("opens a position", async () => {
-    const priceLower = 10;
-    const priceUpper = 20;
-    const priceInitial = 15;
+    const priceLower = 0.8;
+    const priceUpper = 1.2;
+    const priceInitial = 1;
 
     const TICK_ARRAY_SIZE = 60;
-    const tickSpacing = 1; // FIX: matches hardcoded tick_spacing=1 in create_pool
+    const tickSpacing = 1;
 
     const raw_tick_lower = Math.log(priceLower) / Math.log(1.0001);
     const raw_tick_upper = Math.log(priceUpper) / Math.log(1.0001);
 
-    // FIX: snap to tickSpacing=1 (just round, no *64 grouping)
     const tick_lower_index = Math.floor(raw_tick_lower / tickSpacing) * tickSpacing;
     const tick_upper_index = Math.floor(raw_tick_upper / tickSpacing) * tickSpacing;
 
@@ -177,6 +177,7 @@ describe("Test", () => {
     await program.provider.connection.confirmTransaction(txHash);
   });
 
+
   it("fetches the pool_state, price ticks", async () => {
 
     const poolState = await program.account.poolState.fetch(pool_state_pda);
@@ -233,4 +234,86 @@ it("calculates the liquidity and the amount of tokens to be provided", async () 
     console.log("These are the expected Token A to submit", expectedTokenAToSubmit / (10 ** 9)); 
   });
 
+
+
+  it("adds/increases liquidity", async () => {
+
+    const TICK_ARRAY_SIZE = 60;
+    const tickSpacing = 1;
+
+    const raw_tick_lower = Math.log(0.8) / Math.log(1.0001);
+    const raw_tick_upper = Math.log(1.2) / Math.log(1.0001);
+
+    const tick_lower_index = Math.floor(raw_tick_lower / tickSpacing) * tickSpacing;
+    const tick_upper_index = Math.floor(raw_tick_upper / tickSpacing) * tickSpacing;
+
+    const ticks_per_array = TICK_ARRAY_SIZE * tickSpacing;
+
+    const tick_array_lower_start_index = Math.floor(tick_lower_index / ticks_per_array) * ticks_per_array;
+
+    const tick_array_upper_start_index = Math.floor(tick_upper_index / ticks_per_array) * ticks_per_array;
+
+    const lowerIndexBuffer = Buffer.alloc(4);
+    lowerIndexBuffer.writeInt32BE(tick_array_lower_start_index);
+
+    const upperIndexBuffer = Buffer.alloc(4);
+    upperIndexBuffer.writeInt32BE(tick_array_upper_start_index);
+
+    const [tick_array_lower_account] = web3.PublicKey.findProgramAddressSync(
+      [
+        Buffer.from("tick_array"),
+        pool_state_pda.toBuffer(),
+        lowerIndexBuffer,
+      ],
+      program.programId
+    );
+
+    const [tick_array_upper_account] = web3.PublicKey.findProgramAddressSync(
+      [
+        Buffer.from("tick_array"),
+        pool_state_pda.toBuffer(),
+        upperIndexBuffer,
+      ],
+      program.programId
+    );
+
+
+    const token_account_0 = getAssociatedTokenAddressSync(
+      tokenA_mint_address,
+      program.provider.publicKey
+    );
+
+    const token_account_1 = getAssociatedTokenAddressSync(
+      tokenB_mint_address,
+      program.provider.publicKey
+    );
+
+    const amount_0_max = new BN("101000000000"); 
+    const amount_1_max = new BN("122000000000");
+    const liquidityValueToSubmit = new BN("1147722557505");
+
+    const txHash = await program.methods
+    .increaseLiquidity(
+      liquidityValueToSubmit,
+      amount_0_max,
+      amount_1_max,
+      tick_lower_index,
+      tick_upper_index,
+    )
+    .accounts({
+      payer: program.provider.publicKey,
+      poolState: pool_state_pda,
+      tickArrayLower: tick_array_lower_account,
+      tickArrayUpper: tick_array_upper_account,
+      tokenAccount0: token_account_0,
+      tokenAccount1: token_account_1,
+      tokenVault0: token_vault_0_pda,
+      tokenVault1: token_vault_1_pda,
+      tokenProgram: TOKEN_PROGRAM_ID
+    })
+    .rpc();
+
+    console.log(`Use 'solana confirm -v ${txHash}' to see the logs`);
+    await program.provider.connection.confirmTransaction(txHash);
+  });
 });
