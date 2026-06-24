@@ -17,9 +17,7 @@ use anchor_spl::token::{self, InitializeAccount, Token, TokenAccount, Transfer};
 use anchor_spl::token_interface::{Mint, TokenInterface};
 
 
-
-
-declare_id!("2XJG1KsydWbQGmnNWm4Qt1LXvrBCHKfpsFaRMo8ujN2w");
+declare_id!("927222FTohuDPDww8trKXiWTJp9knM7UCcKCs9yZCRNa");
 
 #[program]
 pub mod clmm_basic {
@@ -118,6 +116,34 @@ pub mod clmm_basic {
             tick_upper_index,
         )
     }
+
+    pub fn decrease_liquidity<'a, 'b, 'c: 'info, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, DecreaseLiquidity<'info>>,
+        liquidity: u128,
+        amount_0_min: u64,
+        amount_1_min: u64,
+        tick_lower_index: i32,
+        tick_upper_index: i32,
+    ) -> Result<()> {
+    crate::instructions::decrease_liquidity::decrease_liquidity(
+        &ctx.accounts.pool_state,
+        &ctx.accounts.token_vault_0.to_account_info(),
+        &ctx.accounts.token_vault_1.to_account_info(),
+        &ctx.accounts.tick_array_lower,
+        &ctx.accounts.tick_array_upper,
+        &ctx.accounts.recipient_token_account_0.to_account_info(),
+        &ctx.accounts.recipient_token_account_1.to_account_info(),
+        &ctx.accounts.token_program,
+        None,
+        None,
+        None,
+        liquidity,
+        amount_0_min,
+        amount_1_min,
+        tick_lower_index,
+        tick_upper_index
+    )
+    }
 }
 
 impl PoolState {
@@ -150,6 +176,7 @@ impl PoolState {
 
         Ok(())
     }
+    
 }
 
 #[derive(Accounts)]
