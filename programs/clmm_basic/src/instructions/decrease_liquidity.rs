@@ -73,22 +73,24 @@ pub fn decrease_liquidity<'a, 'b, 'c: 'info, 'info>(
     tick_lower_index: i32,
     tick_upper_index: i32,
 ) -> Result<()> {
-    let mut pool_state = pool_state_loader.load_mut()?;
-
-    let LiquidityChangeResult {
-        amount_0,
-        amount_1,
-        ..
-    } = burn_liquidity(
-        pool_state_loader,
-        &mut pool_state,
-        tick_array_lower_loader,
-        tick_array_upper_loader,
-        tick_lower_index,
-        tick_upper_index,
-        liquidity,
-    )?;
-
+    let (amount_0, amount_1) = {  
+        let mut pool_state = pool_state_loader.load_mut()?;
+    
+        let LiquidityChangeResult {
+            amount_0,
+            amount_1,
+            ..
+        } = burn_liquidity(
+            pool_state_loader,
+            &mut pool_state,
+            tick_array_lower_loader,
+            tick_array_upper_loader,
+            tick_lower_index,
+            tick_upper_index,
+            liquidity,
+        )?;
+        (amount_0, amount_1)
+    };
     let decrease_amount_0 = amount_0;
     let decrease_amount_1 = amount_1;
 

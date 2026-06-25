@@ -74,6 +74,19 @@ pub fn add_liquidity<'b, 'c: 'info, 'info>(
         clock.unix_timestamp as u64,
     )?;
 
+    // update tick_state
+    tick_array_lower_loader.load_mut()?.update_tick_state(
+        tick_lower_index,
+        pool_state.tick_spacing,
+        tick_lower_state,
+    )?;
+
+    tick_array_upper_loader.load_mut()?.update_tick_state(
+        tick_upper_index,
+        pool_state.tick_spacing,
+        tick_upper_state,
+    )?;
+
     if result.tick_lower_flipped {
         tick_array_lower_loader
             .load_mut()?
