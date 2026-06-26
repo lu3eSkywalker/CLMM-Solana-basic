@@ -316,4 +316,84 @@ it("calculates the liquidity and the amount of tokens to be provided", async () 
     console.log(`Use 'solana confirm -v ${txHash}' to see the logs`);
     await program.provider.connection.confirmTransaction(txHash);
   });
+
+    it("decrease liquidity", async() => {
+
+    const TICK_ARRAY_SIZE = 60;
+    const tickSpacing = 1;
+
+    const raw_tick_lower = Math.log(0.8) / Math.log(1.0001);
+    const raw_tick_upper = Math.log(1.2) / Math.log(1.0001);
+
+    const tick_lower_index = Math.floor(raw_tick_lower / tickSpacing) * tickSpacing;
+    const tick_upper_index = Math.floor(raw_tick_upper / tickSpacing) * tickSpacing;
+
+    const ticks_per_array = TICK_ARRAY_SIZE * tickSpacing;
+
+    const tick_array_lower_start_index = Math.floor(tick_lower_index / ticks_per_array) * ticks_per_array;
+    const tick_array_upper_start_index = Math.floor(tick_upper_index / ticks_per_array) * ticks_per_array;
+
+    const lowerIndexBuffer = Buffer.alloc(4);
+    lowerIndexBuffer.writeInt32BE(tick_array_lower_start_index);
+
+    const upperIndexBuffer = Buffer.alloc(4);
+    upperIndexBuffer.writeInt32BE(tick_array_upper_start_index);
+
+    const [tick_array_lower_account] = web3.PublicKey.findProgramAddressSync(
+    [
+      Buffer.from("tick_array"),
+      pool_state_pda.toBuffer(),
+      lowerIndexBuffer,
+    ],
+    program.programId
+  );
+
+    const [tick_array_upper_account] = web3.PublicKey.findProgramAddressSync(
+    [
+      Buffer.from("tick_array"),
+      pool_state_pda.toBuffer(),
+      upperIndexBuffer,
+    ],
+    program.programId
+  );
+
+  const recipient_Token_Account_0 = getAssociatedTokenAddressSync(
+    tokenA_mint_address,
+    program.provider.publicKey
+  );
+
+  const recipient_Token_Account_1 = getAssociatedTokenAddressSync(
+    tokenB_mint_address,
+    program.provider.publicKey
+  );
+
+  const amount_0_min = new BN("0");
+  const amount_1_min = new BN("0");
+  const liquidityValueToDecrease = new BN("1147722557505");
+
+  const txHash = await program.methods
+  .decreaseLiquidity(
+    liquidityValueToDecrease,
+    amount_0_min,
+    amount_1_min,
+    tick_lower_index,
+    tick_upper_index
+  )
+  .accounts({
+    poolState: pool_state_pda,
+    tokenVault0: token_vault_0_pda,
+    tokenVault1: token_vault_1_pda,
+    tickArrayLower: tick_array_lower_account,
+    tickArrayUpper: tick_array_upper_account,
+    recipientTokenAccount0: recipient_Token_Account_0,
+    recipientTokenAccount1: recipient_Token_Account_1,
+    tokenProgram: TOKEN_PROGRAM_ID
+  })
+  .rpc();
+
+  console.log(`Use 'solana confirm -v ${txHash}' to see the logs`);
+  await program.provider.connection.confirmTransaction(txHash);
+  });
+
+
 });
