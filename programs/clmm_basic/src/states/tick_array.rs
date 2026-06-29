@@ -154,6 +154,31 @@ impl TickArrayState {
         }
         Ok(())
     }
+
+    pub fn next_initialized_tick(
+        &self,
+        tick: i32,
+        tick_spacing: u16,
+        zero_for_one: bool,
+    ) -> Result<Option<&TickState>> {
+        if zero_for_one {
+            let curr_offset = self.get_tick_offset_in_array(tick, tick_spacing)?;
+            for i in (0..curr_offset).rev() {
+                if self.ticks[i].is_initialized() {
+                    return Ok(Some(&self.ticks[i]));
+                }
+            }
+        } else {
+            let curr_offset = self.get_tick_offset_in_array(tick, tick_spacing)?;
+            for i in (curr_offset + 1)..TICK_ARRAY_SIZE_USIZE {
+                if self.ticks[i].is_initialized() {
+                    return Ok(Some(&self.ticks[i]));
+                }
+            }
+        }
+        Ok(None)
+    }
+
 }
 
 #[account(zero_copy(unsafe))]
