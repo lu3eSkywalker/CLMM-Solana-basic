@@ -5,6 +5,7 @@ use anchor_spl::token_2022::{
 };
 use anchor_spl::token_interface::{Mint, TokenInterface};
 use anchor_spl::token::{self, Token};
+use crate::PoolState;
 
 pub fn transfer_from_user_to_pool_vault<'info>(
     // signer: &Signer<'info>,
@@ -53,7 +54,6 @@ pub fn transfer_from_user_to_pool_vault<'info>(
         ),
     }
 }
-
 
 pub fn transfer_from_pool_vault_to_user<'info>(
     pool_state_loader: &AccountLoader<'info, PoolState>,

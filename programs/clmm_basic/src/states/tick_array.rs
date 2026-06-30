@@ -15,6 +15,10 @@ impl TickState {
         16 +
         52;
 
+    pub fn is_initialized(&self) -> bool {
+        self.liquidity_gross != 0
+    }
+
     pub fn update(
         &mut self,
         tick_current: i32,

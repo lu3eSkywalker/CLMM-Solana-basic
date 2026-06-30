@@ -59,7 +59,7 @@ pub fn compute_swap_step(
             block_timestamp,
         )?;
         if amount_out.is_some() {
-            swap_step.amount_in = amount_in.unwrap();
+            swap_step.amount_out = amount_out.unwrap();
         }
 
         // Determine the actual next sqrt price]
@@ -179,7 +179,7 @@ fn calculate_amount_in_range(
         };
 
         if result.is_ok() {
-
+            return Ok(Some(result.unwrap()));
         } else {
             if result.err().unwrap() == ClmmError::MaxTokenOverflow.into() {
                 return Ok(None);

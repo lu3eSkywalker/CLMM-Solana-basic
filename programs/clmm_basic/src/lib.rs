@@ -16,8 +16,7 @@ use anchor_spl::token::{self, InitializeAccount, Token, TokenAccount, Transfer};
 
 use anchor_spl::token_interface::{Mint, TokenInterface};
 
-
-declare_id!("927222FTohuDPDww8trKXiWTJp9knM7UCcKCs9yZCRNa");
+declare_id!("ERVBWDNeqHjarW6En4X9383tJxCGS1i2htLNUyFoBeej");
 
 #[program]
 pub mod clmm_basic {
@@ -143,6 +142,16 @@ pub mod clmm_basic {
         tick_lower_index,
         tick_upper_index
     )
+    }
+
+    pub fn swap<'a, 'b, 'c: 'info, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, Swap<'info>>,
+        amount: u64,
+        other_amount_threshold: u64,
+        sqrt_price_limit_x64: u128,
+        is_base_input: bool,
+    ) -> Result<()> {
+        instructions::swap::swap(ctx, amount, other_amount_threshold, sqrt_price_limit_x64, is_base_input)
     }
 }
 

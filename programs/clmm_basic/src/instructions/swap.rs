@@ -82,6 +82,8 @@ pub fn swap_internal(
         liquidity: pool_state.liquidity,
     };
 
+    let block_timestamp = Clock::get()?.unix_timestamp as u32;
+
     while state.amount_specified_remaining != 0 && state.sqrt_price_x64 != sqrt_price_limit_x64 {
         let mut step = StepComputations::default();
         step.sqrt_price_start_x64 = state.sqrt_price_x64;
@@ -126,6 +128,7 @@ pub fn swap_internal(
             state.amount_specified_remaining,
             is_base_input,
             zero_for_one,
+            block_timestamp,
         )?;
 
         state.sqrt_price_x64 = swap_step.sqrt_price_next_x64;
@@ -191,4 +194,122 @@ pub fn swap_internal(
     };
 
     Ok((amount_0, amount_1))
+}
+pub fn swap<'a, 'b, 'c: 'info, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info, Swap<'info>>,
+    amount: u64,
+    other_amount_threshold: u64,
+    sqrt_price_limit_x64: u128,
+    is_base_input: bool,
+) -> Result<()> {
+    let amount_0;
+    let amount_1;
+    let zero_for_one;
+
+    let input_balance_before = ctx.accounts.input_vault.amount;
+    let output_balance_before = ctx.accounts.output_vault.amount;
+
+    {
+        let pool_state = &mut ctx.accounts.pool_state.load_mut()?;
+        zero_for_one = ctx.accounts.input_vault.mint == pool_state.token_mint_0;
+
+        require!(
+            if zero_for_one {
+                ctx.accounts.input_vault.key() == pool_state.token_vault_0
+                    && ctx.accounts.output_vault.key() == pool_state.token_vault_1
+            } else {
+                ctx.accounts.input_vault.key() == pool_state.token_vault_1
+                    && ctx.accounts.output_vault.key() == pool_state.token_vault_0
+            },
+            ClmmError::InvalidVault
+        );
+
+        let tick_array = &mut ctx.accounts.tick_array.load_mut()?;
+
+        let limit = if sqrt_price_limit_x64 == 0 {
+            if zero_for_one {
+                tick_math::MIN_SQRT_PRICE_X64 + 1
+            } else {
+                tick_math::MAX_SQRT_PRICE_X64 - 1
+            }
+        } else {
+            sqrt_price_limit_x64
+        };
+
+        (amount_0, amount_1) = swap_internal(
+            pool_state,
+            tick_array,
+            amount,
+            limit,
+            zero_for_one,
+            is_base_input,
+        )?;
+
+        require!(amount_0 != 0 && amount_1 != 0, ClmmError::ZeroSupplyLiquidity);
+    }
+
+    if zero_for_one {
+        transfer_from_user_to_pool_vault(
+            &ctx.accounts.payer.to_account_info(),
+            &ctx.accounts.input_token_account.to_account_info(),
+            &ctx.accounts.input_vault.to_account_info(),
+            None,
+            &ctx.accounts.token_program.to_account_info(),
+            None,
+            amount_0,
+        )?;
+
+        transfer_from_pool_vault_to_user(
+            &ctx.accounts.pool_state,
+            &ctx.accounts.output_vault.to_account_info(),
+            &ctx.accounts.output_token_account.to_account_info(),
+            None,
+            &ctx.accounts.token_program.to_account_info(),
+            None,
+            amount_1,
+        )?;
+    } else {
+        transfer_from_user_to_pool_vault(
+            &ctx.accounts.payer.to_account_info(),
+            &ctx.accounts.input_token_account.to_account_info(),
+            &ctx.accounts.input_vault.to_account_info(),
+            None,
+            &ctx.accounts.token_program.to_account_info(),
+            None,
+            amount_1,
+        )?;
+
+        transfer_from_pool_vault_to_user(
+            &ctx.accounts.pool_state,
+            &ctx.accounts.output_vault.to_account_info(),
+            &ctx.accounts.output_token_account.to_account_info(),
+            None,
+            &ctx.accounts.token_program.to_account_info(),
+            None,
+            amount_0,
+        )?;
+    }
+
+    if is_base_input {
+        let output_amount = output_balance_before
+            .checked_sub(ctx.accounts.output_vault.amount)
+            .unwrap();
+        require!(
+            output_amount >= other_amount_threshold,
+            ClmmError::SlippageCheck
+        );
+    } else {
+        let input_amount = ctx
+            .accounts
+            .input_vault
+            .amount
+            .checked_sub(input_balance_before)
+            .unwrap();
+        require!(
+            input_amount <= other_amount_threshold,
+            ClmmError::SlippageCheck
+        );
+    }
+
+    Ok(())
 }

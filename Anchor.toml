@@ -5,7 +5,7 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-Token_Vault = "44vxWb6EtJMDjsd2r1r3onJX77DAGJVL31PWAyK7zViK"
+Token_Vault = "ERVBWDNeqHjarW6En4X9383tJxCGS1i2htLNUyFoBeej"
 
 [registry]
 url = "https://api.apr.dev"
