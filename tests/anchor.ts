@@ -396,4 +396,126 @@ it("calculates the liquidity and the amount of tokens to be provided", async () 
   });
 
 
+  it("swaps token_1 for token_0", async () => {
+    const tickSpacing = 1;
+    const TICK_ARRAY_SIZE = 60;
+    const ticks_per_array = TICK_ARRAY_SIZE * tickSpacing;
+
+    // Position around current price (tick 0) so swap has active liquidity
+    const tick_lower = -1;
+    const tick_upper = 59;
+
+    const tick_array_lower_start_index =
+      Math.floor(tick_lower / ticks_per_array) * ticks_per_array; // -60
+    const tick_array_upper_start_index =
+      Math.floor(tick_upper / ticks_per_array) * ticks_per_array; // 0
+
+    const bufLower = Buffer.alloc(4);
+    bufLower.writeInt32BE(tick_array_lower_start_index);
+    const bufUpper = Buffer.alloc(4);
+    bufUpper.writeInt32BE(tick_array_upper_start_index);
+
+    const [tick_array_lower_pda] = web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("tick_array"), pool_state_pda.toBuffer(), bufLower],
+      program.programId
+    );
+    const [tick_array_upper_pda] = web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("tick_array"), pool_state_pda.toBuffer(), bufUpper],
+      program.programId
+    );
+
+    const token_account_0 = getAssociatedTokenAddressSync(
+      tokenA_mint_address,
+      program.provider.publicKey
+    );
+    const token_account_1 = getAssociatedTokenAddressSync(
+      tokenB_mint_address,
+      program.provider.publicKey
+    );
+
+    // Provide liquidity at current price range so swap has active liquidity
+    const sqrtPLower = Math.sqrt(Math.pow(1.0001, tick_lower));
+    const sqrtPUpper = Math.sqrt(Math.pow(1.0001, tick_upper));
+    const sqrtPCurrent = Math.sqrt(1);
+
+    // Since tick_current (0) is within the range [-1, 59):
+    // amount_0 = L * (√P_upper - √P_current) / (√P_upper * √P_current)
+    // amount_1 = L * (√P_current - √P_lower)
+    // We compute L from desired token_0 contribution
+    const desiredTokenA = 3 * (10 ** 9); // 3 tokens of token A
+    const liquidity = Math.floor(
+      desiredTokenA * (sqrtPUpper * sqrtPCurrent) / (sqrtPUpper - sqrtPCurrent)
+    );
+    const liquidityValue = new BN(liquidity.toString());
+    const amount0Max = new BN(100_000_000_000); // 100 tokens max
+    const amount1Max = new BN(100_000_000_000); // 100 tokens max
+
+    const txOpen = await program.methods
+      .openPosition(
+        tick_lower, tick_upper,
+        tick_array_lower_start_index, tick_array_upper_start_index,
+        liquidityValue, amount0Max, amount1Max
+      )
+      .accounts({
+        payer: program.provider.publicKey,
+        poolState: pool_state_pda,
+        tickArrayLower: tick_array_lower_pda,
+        tickArrayUpper: tick_array_upper_pda,
+        tokenAccount0: token_account_0,
+        tokenAccount1: token_account_1,
+        tokenVault0: token_vault_0_pda,
+        tokenVault1: token_vault_1_pda,
+        rent: web3.SYSVAR_RENT_PUBKEY,
+        systemProgram: web3.SystemProgram.programId,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      })
+      .rpc();
+
+    console.log(`Use 'solana confirm -v ${txOpen}' to see the logs`);
+    await program.provider.connection.confirmTransaction(txOpen);
+
+    // Pool state should now have active liquidity
+    const poolBefore = await program.account.poolState.fetch(pool_state_pda);
+    console.log("Before swap:", {
+      sqrtPriceX64: poolBefore.sqrtPriceX64.toString(),
+      liquidity: poolBefore.liquidity.toString(),
+      currentTick: poolBefore.currentTick,
+    });
+
+    // Swap token_1 for token_0 (zero_for_one = false, is_base_input = true)
+    // Input: token_1, Output: token_0, Price moves UP
+    const swapAmount = new BN(10_000_000); // 0.01 token B
+    const otherAmountThreshold = new BN(0); // accept any output
+    const sqrtPriceLimit = new BN(0); // no limit, use default boundaries
+
+    const txSwap = await program.methods
+      .swap(swapAmount, otherAmountThreshold, sqrtPriceLimit, false)
+      .accounts({
+        payer: program.provider.publicKey,
+        poolState: pool_state_pda,
+        inputTokenAccount: token_account_1,
+        outputTokenAccount: token_account_0,
+        inputVault: token_vault_1_pda,
+        outputVault: token_vault_0_pda,
+        tickArray: tick_array_upper_pda,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      })
+      .rpc();
+
+    console.log(`Use 'solana confirm -v ${txSwap}' to see the logs`);
+    await program.provider.connection.confirmTransaction(txSwap);
+
+    // Verify swap moved the price
+    const poolAfter = await program.account.poolState.fetch(pool_state_pda);
+    console.log("After swap:", {
+      sqrtPriceX64: poolAfter.sqrtPriceX64.toString(),
+      liquidity: poolAfter.liquidity.toString(),
+      currentTick: poolAfter.currentTick,
+    });
+
+    // Price should have increased (more token_1 in, less token_0 out)
+    const priceBefore = new BN(poolBefore.sqrtPriceX64);
+    const priceAfter = new BN(poolAfter.sqrtPriceX64);
+    console.log("Price change:", priceAfter.sub(priceBefore).toString());
+  });
 });
