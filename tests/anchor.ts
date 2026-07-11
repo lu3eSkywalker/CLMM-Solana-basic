@@ -4,10 +4,6 @@ import { getAssociatedTokenAddressSync, TOKEN_PROGRAM_ID } from "@solana/spl-tok
 import { ClmmBasic } from "../target/types/Clmm_Basic";
 import { BN } from "@coral-xyz/anchor";
 
-// Ported from programs/clmm_basic/src/libraries/tick_math.rs
-// The function exists to get an exact, deterministic Q64.64 sqrt price 
-// that matches the on-chain math, avoiding floating-point rounding errors 
-// that Math.sqrt(Math.pow(1.0001, tick)) would introduce.
 function getSqrtPriceAtTick(tick: number): BN {
   const absTick = Math.abs(tick);
   const Q64 = new BN(1).shln(64);
@@ -76,9 +72,9 @@ describe("Test", () => {
   const POSITION_TICK_UPPER = 59;
 
   const TICK_ARRAY_LOWER_START =
-    Math.floor(POSITION_TICK_LOWER / TICKS_PER_ARRAY) * TICKS_PER_ARRAY; // -60
+    Math.floor(POSITION_TICK_LOWER / TICKS_PER_ARRAY) * TICKS_PER_ARRAY;
   const TICK_ARRAY_UPPER_START =
-    Math.floor(POSITION_TICK_UPPER / TICKS_PER_ARRAY) * TICKS_PER_ARRAY; // 0
+    Math.floor(POSITION_TICK_UPPER / TICKS_PER_ARRAY) * TICKS_PER_ARRAY;
 
   function getTickArrayPda(startIndex: number): web3.PublicKey {
     const buf = Buffer.alloc(4);
@@ -102,53 +98,76 @@ describe("Test", () => {
     program.provider.publicKey
   );
 
+  function sqrtPrice(tick: number): number {
+    return Math.sqrt(Math.pow(1.0001, tick));
+  }
+
+  async function ensurePoolReady(): Promise<void> {
+    const info = await program.provider.connection.getAccountInfo(pool_state_pda);
+    if (!info) {
+      const sqrt_price_x64 = new BN(2).pow(new BN(64));
+      const txHash = await program.methods
+        .createPool(sqrt_price_x64)
+        .accounts({
+          poolCreator: program.provider.publicKey,
+          poolState: pool_state_pda,
+          tokenMint0: tokenA_mint_address,
+          tokenMint1: tokenB_mint_address,
+          tokenVault0: token_vault_0_pda,
+          tokenVault1: token_vault_1_pda,
+          tokenProgram0: TOKEN_PROGRAM_ID,
+          tokenProgram1: TOKEN_PROGRAM_ID,
+          systemProgram: web3.SystemProgram.programId,
+          rent: web3.SYSVAR_RENT_PUBKEY,
+        })
+        .rpc();
+      console.log(`Pool created. Use 'solana confirm -v ${txHash}' to see the logs`);
+      await program.provider.connection.confirmTransaction(txHash);
+      return;
+    }
+
+    const state = await program.account.poolState.fetch(pool_state_pda);
+    if (state.currentTick === 0 && state.liquidity.eq(new BN(0))) {
+      console.log("Pool exists and is clean (tick=0, liq=0) – skipping creation");
+      return;
+    }
+
+    throw new Error(
+      `Pool exists in stale state (tick=${state.currentTick}, liq=${state.liquidity}).\n` +
+      `This test requires a fresh pool at tick=0 with liq=0.\n` +
+      `To fix:\n` +
+      `  1. Create new token mints (update mint addresses in the test), OR\n` +
+      `  2. Close and recreate the pool:\n` +
+      `       solana program close --bypass-warning ${program.programId}\n` +
+      `     then re-deploy and re-run.`
+    );
+  }
+
   it("creates a liquidity pool of token A and token B", async () => {
-    const sqrt_price_x64 = new BN(2).pow(new BN(64));
-
-    const txHash = await program.methods
-      .createPool(sqrt_price_x64)
-      .accounts({
-        poolCreator: program.provider.publicKey,
-        poolState: pool_state_pda,
-        tokenMint0: tokenA_mint_address,
-        tokenMint1: tokenB_mint_address,
-        tokenVault0: token_vault_0_pda,
-        tokenVault1: token_vault_1_pda,
-        tokenProgram0: TOKEN_PROGRAM_ID,
-        tokenProgram1: TOKEN_PROGRAM_ID,
-        systemProgram: web3.SystemProgram.programId,
-        rent: web3.SYSVAR_RENT_PUBKEY,
-      })
-      .rpc();
-
-    console.log(`Use 'solana confirm -v ${txHash}' to see the logs`);
-    await program.provider.connection.confirmTransaction(txHash);
+    await ensurePoolReady();
   });
 
-  it("opens a position", async () => {
-    const sqrtPLower = Math.sqrt(Math.pow(1.0001, POSITION_TICK_LOWER));
-    const sqrtPUpper = Math.sqrt(Math.pow(1.0001, POSITION_TICK_UPPER));
+
+  // For this we chose a base tick and provide liquidity across multiple sub-ranges
+  it("opens a position with liquidity at multiple tick ranges", async () => {
     const sqrtPCurrent = Math.sqrt(1);
 
-    const desiredTokenA = 100 * (10 ** 9);
-    const liquidity = Math.floor(
-      desiredTokenA * (sqrtPUpper * sqrtPCurrent) / (sqrtPUpper - sqrtPCurrent)
+    const mainLiquidity = Math.floor(
+      50 * (10 ** 9) * (sqrtPrice(POSITION_TICK_UPPER) * sqrtPCurrent)
+        / (sqrtPrice(POSITION_TICK_UPPER) - sqrtPrice(POSITION_TICK_LOWER))
     );
-    const liquidityValue = new BN(liquidity.toString());
 
     console.log("Position ticks:", { lower: POSITION_TICK_LOWER, upper: POSITION_TICK_UPPER });
     console.log("Tick arrays:", { lower: TICK_ARRAY_LOWER_START, upper: TICK_ARRAY_UPPER_START });
-    console.log("Liquidity:", liquidity);
+    console.log("Main liquidity:", mainLiquidity);
 
     const txHash = await program.methods
       .openPosition(
-        POSITION_TICK_LOWER,
-        POSITION_TICK_UPPER,
-        TICK_ARRAY_LOWER_START,
-        TICK_ARRAY_UPPER_START,
-        liquidityValue,
+        POSITION_TICK_LOWER, POSITION_TICK_UPPER,
+        TICK_ARRAY_LOWER_START, TICK_ARRAY_UPPER_START,
+        new BN(mainLiquidity.toString()),
         new BN(500_000_000_000),
-        new BN(10_000_000_000_000)
+        new BN(10_000_000_000_000),
       )
       .accounts({
         payer: program.provider.publicKey,
@@ -167,9 +186,48 @@ describe("Test", () => {
 
     console.log(`Use 'solana confirm -v ${txHash}' to see the logs`);
     await program.provider.connection.confirmTransaction(txHash);
+
+    const intermediateRanges = [
+      { lower: 0, upper: 19 },
+      { lower: 19, upper: 39 },
+      { lower: 39, upper: 59 },
+    ];
+
+    for (const range of intermediateRanges) {
+      const liq = Math.floor(
+        15 * (10 ** 9) * (sqrtPrice(range.upper) * sqrtPrice(range.lower))
+          / (sqrtPrice(range.upper) - sqrtPrice(range.lower))
+      );
+
+      console.log(`Range [${range.lower}, ${range.upper}]: liq=${liq}`);
+
+      const tx = await program.methods
+        .increaseLiquidity(
+          new BN(liq.toString()),
+          new BN(500_000_000_000),
+          new BN(10_000_000_000_000),
+          range.lower,
+          range.upper,
+        )
+        .accounts({
+          payer: program.provider.publicKey,
+          poolState: pool_state_pda,
+          tickArrayLower: tick_array_upper_pda,
+          tickArrayUpper: tick_array_upper_pda,
+          tokenAccount0: token_account_0,
+          tokenAccount1: token_account_1,
+          tokenVault0: token_vault_0_pda,
+          tokenVault1: token_vault_1_pda,
+          tokenProgram: TOKEN_PROGRAM_ID,
+        })
+        .rpc();
+
+      console.log(`Use 'solana confirm -v ${tx}' to see the logs`);
+      await program.provider.connection.confirmTransaction(tx);
+    }
   });
 
-  it("increases liquidity", async () => {
+    it("increases liquidity", async () => {
     const extraLiquidity = new BN(10_000_000_000_000);
     const txHash = await program.methods
       .increaseLiquidity(
@@ -223,9 +281,6 @@ describe("Test", () => {
   });
 
   it("swaps token_1 (B) for token_0 (A) staying in range", async () => {
-    // Swap token_1 (B) → token_0 (A): input_vault = token_vault_1 → zero_for_one = false
-    // Price moves UP. Uses tick_array_upper which contains tick 0..59
-    // Small amount = 0.00001 token B → stays well within tick range [-1, 59)
     const swapAmount = new BN(10_000_000);
 
     const poolBefore = await program.account.poolState.fetch(pool_state_pda);
@@ -259,22 +314,14 @@ describe("Test", () => {
       currentTick: poolAfter.currentTick,
     });
   });
-
-  it("swaps token_1 (B) for token_0 (A) crossing upper tick 59", async () => {
-    // Swap LARGE amount of token B to drive price past tick 59 (upper bound)
-    // sqrt_price_limit = price at tick 59 → stops the swap immediately after crossing
-    // Afterwards: pool liquidity drops to 0 (position is out-of-range), tick >= 59
-
+  
+  it("swaps token_1 (B) for token_0 (A) hopping across multiple ticks", async () => {
     const poolBefore = await program.account.poolState.fetch(pool_state_pda);
 
-    // Compute sqrt_price_limit = sqrt price at tick 59 (our position's upper bound)
     const sqrtPriceLimit = getSqrtPriceAtTick(POSITION_TICK_UPPER);
-
-    // Amount needed ≈ liquidity * (√P_59 - √P_0) ≈ liquidity * 0.002952
-    // We use a generous buffer (300 tokens of B) to ensure crossing
     const swapAmount = new BN(300_000_000_000);
 
-    console.log("Crossing swap - Before:", {
+    console.log("Multi-tick swap - Before:", {
       sqrtPriceX64: poolBefore.sqrtPriceX64.toString(),
       liquidity: poolBefore.liquidity.toString(),
       currentTick: poolBefore.currentTick,
@@ -300,16 +347,14 @@ describe("Test", () => {
     await program.provider.connection.confirmTransaction(txHash);
 
     const poolAfter = await program.account.poolState.fetch(pool_state_pda);
-    console.log("Crossing swap - After:", {
+    console.log("Multi-tick swap - After:", {
       sqrtPriceX64: poolAfter.sqrtPriceX64.toString(),
       liquidity: poolAfter.liquidity.toString(),
       currentTick: poolAfter.currentTick,
     });
 
-    // Verify the tick was crossed: currentTick should be >= upper tick
-    // and pool liquidity should be 0 (position is now out of range)
     console.log(
-      `Tick crossed: ${poolAfter.currentTick >= POSITION_TICK_UPPER}`,
+      `Tick crossed upper 59: ${poolAfter.currentTick >= POSITION_TICK_UPPER}`,
       `Liquidity removed: ${poolAfter.liquidity.eq(new BN(0))}`
     );
   });
