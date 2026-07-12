@@ -3,6 +3,7 @@ import * as web3 from "@solana/web3.js";
 import { getAssociatedTokenAddressSync, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { ClmmBasic } from "../target/types/Clmm_Basic";
 import { BN } from "@coral-xyz/anchor";
+import assert from "assert";
 
 function getSqrtPriceAtTick(tick: number): BN {
   const absTick = Math.abs(tick);
@@ -197,10 +198,21 @@ describe("Test", () => {
       console.log(`Use 'solana confirm -v ${tx}' to see the logs`);
       await program.provider.connection.confirmTransaction(tx);
     }
+
+    const poolAfterPositions = await program.account.poolState.fetch(pool_state_pda);
+    assert.ok(
+      poolAfterPositions.liquidity.gt(new BN(0)),
+      `Pool liquidity should be > 0 after opening independent positions, got ${poolAfterPositions.liquidity}`
+    );
+    assert.strictEqual(poolAfterPositions.currentTick, 0, "Pool tick should be 0 after opening positions");
   });
 
   it("increases liquidity", async () => {
     const extraLiquidity = new BN(10_000_000_000_000);
+
+    const poolBefore = await program.account.poolState.fetch(pool_state_pda);
+    const liqBefore = poolBefore.liquidity;
+
     const txHash = await program.methods
       .increaseLiquidity(
         extraLiquidity,
@@ -224,10 +236,20 @@ describe("Test", () => {
 
     console.log(`Use 'solana confirm -v ${txHash}' to see the logs`);
     await program.provider.connection.confirmTransaction(txHash);
+
+    const poolAfter = await program.account.poolState.fetch(pool_state_pda);
+    assert.ok(
+      poolAfter.liquidity.eq(liqBefore.add(extraLiquidity)),
+      `Liquidity after increase should be ${liqBefore.add(extraLiquidity)}, got ${poolAfter.liquidity}`
+    );
   });
 
   it("decreases liquidity (back to original)", async () => {
     const extraLiquidity = new BN(10_000_000_000_000);
+
+    const poolBefore = await program.account.poolState.fetch(pool_state_pda);
+    const liqBefore = poolBefore.liquidity;
+
     const txHash = await program.methods
       .decreaseLiquidity(
         extraLiquidity,
@@ -250,12 +272,20 @@ describe("Test", () => {
 
     console.log(`Use 'solana confirm -v ${txHash}' to see the logs`);
     await program.provider.connection.confirmTransaction(txHash);
+
+    const poolAfter = await program.account.poolState.fetch(pool_state_pda);
+    assert.ok(
+      poolAfter.liquidity.eq(liqBefore.sub(extraLiquidity)),
+      `Liquidity after decrease should be ${liqBefore.sub(extraLiquidity)}, got ${poolAfter.liquidity}`
+    );
   });
 
   it("swaps token_1 (B) for token_0 (A) staying in range", async () => {
     const swapAmount = new BN(10_000_000);
 
     const poolBefore = await program.account.poolState.fetch(pool_state_pda);
+    const liqBefore = poolBefore.liquidity;
+    const tickBefore = poolBefore.currentTick;
     console.log("Before swap:", {
       sqrtPriceX64: poolBefore.sqrtPriceX64.toString(),
       liquidity: poolBefore.liquidity.toString(),
@@ -285,6 +315,16 @@ describe("Test", () => {
       liquidity: poolAfter.liquidity.toString(),
       currentTick: poolAfter.currentTick,
     });
+
+    assert.ok(
+      poolAfter.liquidity.eq(liqBefore),
+      `Liquidity should remain ${liqBefore} after small in-range swap, got ${poolAfter.liquidity}`
+    );
+    assert.ok(
+      poolAfter.sqrtPriceX64.gt(poolBefore.sqrtPriceX64),
+      "Price should increase after swapping B for A"
+    );
+    assert.strictEqual(poolAfter.currentTick, tickBefore, "Tick should remain unchanged for small swap");
   });
 
   it("swaps token_1 (B) for token_0 (A) hopping across multiple ticks", async () => {
@@ -325,9 +365,13 @@ describe("Test", () => {
       currentTick: poolAfter.currentTick,
     });
 
-    console.log(
-      `Tick crossed upper 59: ${poolAfter.currentTick >= POSITION_TICK_UPPER}`,
-      `Liquidity removed: ${poolAfter.liquidity.eq(new BN(0))}`
+    assert.ok(
+      poolAfter.currentTick >= POSITION_TICK_UPPER,
+      `Current tick ${poolAfter.currentTick} should have crossed upper ${POSITION_TICK_UPPER}`
+    );
+    assert.ok(
+      poolAfter.liquidity.isZero(),
+      `Liquidity should be 0 after crossing all positions, got ${poolAfter.liquidity}`
     );
   });
 });
