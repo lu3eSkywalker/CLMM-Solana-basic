@@ -16,6 +16,12 @@ export function Nav() {
         >
           Pools
         </Link>
+        <Link
+          href="/create"
+          className={`nav-link ${pathname === "/create" ? "active" : ""}`}
+        >
+          Create Pool
+        </Link>
         <div className="nav-wallet">
           <WalletMultiButton />
         </div>
