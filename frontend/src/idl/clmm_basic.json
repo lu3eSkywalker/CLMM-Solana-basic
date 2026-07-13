@@ -1,0 +1,777 @@
+{
+  "address": "8wTERW3SPDTkoPvvBgzcpKouA4YrVWbEmqVp9vDwxZTG",
+  "metadata": {
+    "name": "clmm_basic",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
+    {
+      "name": "create_pool",
+      "discriminator": [
+        233,
+        146,
+        209,
+        142,
+        207,
+        104,
+        64,
+        188
+      ],
+      "accounts": [
+        {
+          "name": "pool_creator",
+          "docs": [
+            "Address paying to create the pool. Can be anyone"
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "pool_state",
+          "docs": [
+            "Initialize an account to store the pool state"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  115,
+                  101,
+                  101,
+                  100
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "token_mint_0"
+              },
+              {
+                "kind": "account",
+                "path": "token_mint_1"
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_mint_0",
+          "docs": [
+            "Token_0 mint, the key must be smaller then token_1 mint."
+          ]
+        },
+        {
+          "name": "token_mint_1",
+          "docs": [
+            "Token_1 mint"
+          ]
+        },
+        {
+          "name": "token_vault_0",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool_state"
+              },
+              {
+                "kind": "account",
+                "path": "token_mint_0"
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_vault_1",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  111,
+                  108,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool_state"
+              },
+              {
+                "kind": "account",
+                "path": "token_mint_1"
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_program_0",
+          "docs": [
+            "Spl token program or token program 2022"
+          ]
+        },
+        {
+          "name": "token_program_1",
+          "docs": [
+            "Spl token program or token program 2022"
+          ]
+        },
+        {
+          "name": "system_program",
+          "docs": [
+            "To create a new program account"
+          ],
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "docs": [
+            "Sysvar for program account"
+          ],
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "sqrt_price_x64",
+          "type": "u128"
+        }
+      ]
+    },
+    {
+      "name": "decrease_liquidity",
+      "discriminator": [
+        160,
+        38,
+        208,
+        111,
+        104,
+        91,
+        44,
+        1
+      ],
+      "accounts": [
+        {
+          "name": "pool_state",
+          "writable": true
+        },
+        {
+          "name": "token_vault_0",
+          "docs": [
+            "Token_0 vault"
+          ],
+          "writable": true
+        },
+        {
+          "name": "token_vault_1",
+          "docs": [
+            "Token_1 vault"
+          ],
+          "writable": true
+        },
+        {
+          "name": "tick_array_lower",
+          "writable": true
+        },
+        {
+          "name": "tick_array_upper",
+          "writable": true
+        },
+        {
+          "name": "recipient_token_account_0",
+          "writable": true
+        },
+        {
+          "name": "recipient_token_account_1",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "liquidity",
+          "type": "u128"
+        },
+        {
+          "name": "amount_0_min",
+          "type": "u64"
+        },
+        {
+          "name": "amount_1_min",
+          "type": "u64"
+        },
+        {
+          "name": "tick_lower_index",
+          "type": "i32"
+        },
+        {
+          "name": "tick_upper_index",
+          "type": "i32"
+        }
+      ]
+    },
+    {
+      "name": "increase_liquidity",
+      "discriminator": [
+        46,
+        156,
+        243,
+        118,
+        13,
+        205,
+        251,
+        178
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "pool_state",
+          "writable": true
+        },
+        {
+          "name": "tick_array_lower",
+          "writable": true
+        },
+        {
+          "name": "tick_array_upper",
+          "writable": true
+        },
+        {
+          "name": "token_account_0",
+          "docs": [
+            "Payer's token account for token_0"
+          ],
+          "writable": true
+        },
+        {
+          "name": "token_account_1",
+          "docs": [
+            "Payer's token account for token_1"
+          ],
+          "writable": true
+        },
+        {
+          "name": "token_vault_0",
+          "docs": [
+            "Address which holds pool tokens for token_0"
+          ],
+          "writable": true
+        },
+        {
+          "name": "token_vault_1",
+          "docs": [
+            "Address which holds pool tokens for token_1"
+          ],
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "liquidity",
+          "type": "u128"
+        },
+        {
+          "name": "amount_0_max",
+          "type": "u64"
+        },
+        {
+          "name": "amount_1_max",
+          "type": "u64"
+        },
+        {
+          "name": "tick_lower_index",
+          "type": "i32"
+        },
+        {
+          "name": "tick_upper_index",
+          "type": "i32"
+        }
+      ]
+    },
+    {
+      "name": "open_position",
+      "discriminator": [
+        135,
+        128,
+        47,
+        77,
+        15,
+        152,
+        240,
+        49
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "pool_state",
+          "writable": true
+        },
+        {
+          "name": "tick_array_lower",
+          "docs": [
+            "CHECK"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  105,
+                  99,
+                  107,
+                  95,
+                  97,
+                  114,
+                  114,
+                  97,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool_state"
+              },
+              {
+                "kind": "arg",
+                "path": "tick_array_lower_start_index"
+              }
+            ]
+          }
+        },
+        {
+          "name": "tick_array_upper",
+          "docs": [
+            "CHECK"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  105,
+                  99,
+                  107,
+                  95,
+                  97,
+                  114,
+                  114,
+                  97,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pool_state"
+              },
+              {
+                "kind": "arg",
+                "path": "tick_array_upper_start_index"
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_account_0",
+          "writable": true
+        },
+        {
+          "name": "token_account_1",
+          "writable": true
+        },
+        {
+          "name": "token_vault_0",
+          "writable": true
+        },
+        {
+          "name": "token_vault_1",
+          "writable": true
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "tick_lower_index",
+          "type": "i32"
+        },
+        {
+          "name": "tick_upper_index",
+          "type": "i32"
+        },
+        {
+          "name": "tick_array_lower_start_index",
+          "type": "i32"
+        },
+        {
+          "name": "tick_array_upper_start_index",
+          "type": "i32"
+        },
+        {
+          "name": "liquidity",
+          "type": "u128"
+        },
+        {
+          "name": "amount_0_max",
+          "type": "u64"
+        },
+        {
+          "name": "amount_1_max",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "swap",
+      "discriminator": [
+        248,
+        198,
+        158,
+        145,
+        225,
+        117,
+        135,
+        200
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "signer": true
+        },
+        {
+          "name": "pool_state",
+          "writable": true
+        },
+        {
+          "name": "input_token_account",
+          "writable": true
+        },
+        {
+          "name": "output_token_account",
+          "writable": true
+        },
+        {
+          "name": "input_vault",
+          "writable": true
+        },
+        {
+          "name": "output_vault",
+          "writable": true
+        },
+        {
+          "name": "tick_array",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "other_amount_threshold",
+          "type": "u64"
+        },
+        {
+          "name": "sqrt_price_limit_x64",
+          "type": "u128"
+        },
+        {
+          "name": "is_base_input",
+          "type": "bool"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "PoolState",
+      "discriminator": [
+        247,
+        237,
+        227,
+        245,
+        215,
+        195,
+        222,
+        70
+      ]
+    },
+    {
+      "name": "TickArrayState",
+      "discriminator": [
+        192,
+        155,
+        85,
+        205,
+        49,
+        249,
+        129,
+        42
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "MaxTokenOverflow",
+      "msg": "Max Token Overflow"
+    },
+    {
+      "code": 6001,
+      "name": "LiquiditySubValueError",
+      "msg": "Liquidity Subtraction Error"
+    },
+    {
+      "code": 6002,
+      "name": "LiquidityAddValueError",
+      "msg": "Liquidity Addition Error"
+    },
+    {
+      "code": 6003,
+      "name": "ZeroSupplyLiquidity",
+      "msg": "Zero Supply Liquidity"
+    },
+    {
+      "code": 6004,
+      "name": "SlippageCheck",
+      "msg": "Slippage Check"
+    },
+    {
+      "code": 6005,
+      "name": "InvalidLiquidity",
+      "msg": "Invalid Liquidity"
+    },
+    {
+      "code": 6006,
+      "name": "ZeroToken0Amount",
+      "msg": "Invalid Token 0 Amount"
+    },
+    {
+      "code": 6007,
+      "name": "ZeroToken1Amount",
+      "msg": "Invalid Token 1 Amount"
+    },
+    {
+      "code": 6008,
+      "name": "InvalidVault",
+      "msg": "Invalid Vault Account"
+    },
+    {
+      "code": 6009,
+      "name": "InvalidMessage",
+      "msg": "Test Invalid Message"
+    },
+    {
+      "code": 6010,
+      "name": "InvalidTickArray",
+      "msg": "Invalid Tick Array"
+    }
+  ],
+  "types": [
+    {
+      "name": "PoolState",
+      "serialization": "bytemuckunsafe",
+      "repr": {
+        "kind": "c",
+        "packed": true
+      },
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "sqrt_price_x64",
+            "type": "u128"
+          },
+          {
+            "name": "liquidity",
+            "type": "u128"
+          },
+          {
+            "name": "token_mint_0",
+            "type": "pubkey"
+          },
+          {
+            "name": "token_mint_1",
+            "type": "pubkey"
+          },
+          {
+            "name": "token_vault_0",
+            "type": "pubkey"
+          },
+          {
+            "name": "token_vault_1",
+            "type": "pubkey"
+          },
+          {
+            "name": "open_time",
+            "type": "u64"
+          },
+          {
+            "name": "tick_spacing",
+            "type": "u16"
+          },
+          {
+            "name": "current_tick",
+            "type": "i32"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "_padding",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TickArrayState",
+      "serialization": "bytemuckunsafe",
+      "repr": {
+        "kind": "c"
+      },
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pool_id",
+            "type": "pubkey"
+          },
+          {
+            "name": "start_tick_index",
+            "type": "i32"
+          },
+          {
+            "name": "ticks",
+            "type": {
+              "array": [
+                {
+                  "defined": {
+                    "name": "TickState"
+                  }
+                },
+                60
+              ]
+            }
+          },
+          {
+            "name": "initialized_tick_count",
+            "type": "u8"
+          },
+          {
+            "name": "recent_epoch",
+            "type": "u64"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                107
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "TickState",
+      "serialization": "bytemuckunsafe",
+      "repr": {
+        "kind": "c",
+        "packed": true
+      },
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "tick",
+            "type": "i32"
+          },
+          {
+            "name": "liquidity_net",
+            "type": "i128"
+          },
+          {
+            "name": "liquidity_gross",
+            "type": "u128"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u32",
+                13
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
