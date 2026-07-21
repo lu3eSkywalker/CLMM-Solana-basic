@@ -14,8 +14,8 @@ export function Nav() {
           <Link
             href="/pools"
             className={`rounded-lg px-5 py-2.5 text-sm font-medium whitespace-nowrap transition-all duration-200 ${pathname === "/pools"
-                ? "bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-sm"
-                : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
+              ? "bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-sm"
+              : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
               }`}
           >
             Pools
@@ -23,8 +23,8 @@ export function Nav() {
           <Link
             href="/create"
             className={`rounded-lg px-5 py-2.5 text-sm font-medium whitespace-nowrap transition-all duration-200 ${pathname === "/create"
-                ? "bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-sm"
-                : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
+              ? "bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-sm"
+              : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
               }`}
           >
             Create Pool
@@ -32,11 +32,20 @@ export function Nav() {
           <Link
             href="/open-position"
             className={`rounded-lg px-5 py-2.5 text-sm font-medium whitespace-nowrap transition-all duration-200 ${pathname === "/open-position"
-                ? "bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-sm"
-                : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
+              ? "bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-sm"
+              : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
               }`}
           >
             Open Position
+          </Link>
+          <Link
+            href="/liquidity-calculate"
+            className={`rounded-lg px-5 py-2.5 text-sm font-medium whitespace-nowrap transition-all duration-200 ${pathname === "/liquidity-calculate"
+              ? "bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-sm"
+              : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
+              }`}
+          >
+            Liquidity Calculate
           </Link>
         </div>
         <div className="flex items-center">
