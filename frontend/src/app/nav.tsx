@@ -56,6 +56,15 @@ export function Nav() {
           >
             Increase Liquidity
           </Link>
+          <Link
+            href="/decrease-liquidity"
+            className={`rounded-lg px-5 py-2.5 text-sm font-medium whitespace-nowrap transition-all duration-200 ${pathname === "/decrease-liquidity"
+              ? "bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-sm"
+              : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800"
+              }`}
+          >
+            Decrease Liquidity
+          </Link>
         </div>
         <div className="flex items-center">
           <WalletMultiButton />
